@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: stg_insider_transactions
+    columns:
+      - name: id
+        tests: [not_null, unique]
+      - name: accession_number
+        tests: [not_null]
+      - name: issuer_cik
+        tests: [not_null]
+      - name: shares
+        tests:
+          - not_null
+
+  - name: stg_holdings_positions
+    columns:
+      - name: id
+        tests: [not_null, unique]
+      - name: accession_number
+        tests: [not_null]
+      - name: cusip
+        tests: [not_null]
+      - name: value
+        tests:
+          - not_null
+
+  - name: stg_xbrl_facts
+    columns:
+      - name: id
+        tests: [not_null, unique]
+      - name: accession_number
+        tests: [not_null]
+      - name: concept
+        tests: [not_null]
+
+  - name: stg_filing_sections
+    columns:
+      - name: id
+        tests: [not_null, unique]
+      - name: accession_number
+        tests: [not_null]
+      - name: section
+        tests: [not_null]

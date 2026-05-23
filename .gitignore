@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+
+# Data (raw filings are large and reproducible)
+data/raw/
+data/ref/
+
+# Project docs (proposal & handoff — not part of the deliverable)
+02_proposal_sec_edgar.md
+02_handoff_sec_edgar.md
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+
+# mypy
+.mypy_cache/
+
+# pytest
+.pytest_cache/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# Alembic
+alembic/__pycache__/
+
+# Metabase
+metabase-data/
+
+# Ollama
+ollama-data/
+
+# Docker
+postgres-data/

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edgarSubmission>
+    <headerData>
+        <filerInfo>
+            <filer>
+                <credentials>
+                    <cik>0001067983</cik>
+                </credentials>
+            </filer>
+        </filerInfo>
+    </headerData>
+    <formData>
+        <coverPage>
+            <reportCalendarOrQuarter>2024-03-31</reportCalendarOrQuarter>
+            <filingManager>
+                <name>BERKSHIRE HATHAWAY INC</name>
+            </filingManager>
+        </coverPage>
+    </formData>
+</edgarSubmission>

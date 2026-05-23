@@ -1,0 +1,56 @@
+version: 2
+
+models:
+  - name: mart_insider_summary
+    columns:
+      - name: issuer_cik
+        tests: [not_null]
+      - name: month
+        tests: [not_null]
+      - name: dollar_volume
+        tests:
+          - not_null
+
+  - name: mart_cluster_buying
+    columns:
+      - name: issuer_cik
+        tests: [not_null]
+      - name: n_distinct_insiders_buying_90d
+        tests:
+          - not_null
+
+  - name: mart_holdings_by_manager
+    columns:
+      - name: filer_cik
+        tests: [not_null]
+      - name: period_of_report
+        tests: [not_null]
+
+  - name: mart_holdings_changes
+    columns:
+      - name: filer_cik
+        tests: [not_null]
+      - name: change_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['NEW_POSITION', 'INCREASED', 'REDUCED', 'EXITED']
+
+  - name: mart_ownership_concentration
+    columns:
+      - name: cusip
+        tests: [not_null]
+      - name: hhi
+        tests: [not_null]
+
+  - name: mart_fundamentals_quarterly
+    columns:
+      - name: cik
+        tests: [not_null]
+      - name: period_end
+        tests: [not_null]
+
+  - name: mart_risk_factors_text
+    columns:
+      - name: issuer_cik
+        tests: [not_null]

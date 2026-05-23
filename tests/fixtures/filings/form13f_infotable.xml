@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<informationTable xmlns="http://www.sec.gov/edgar/document/thirteenf/informationtable">
+    <infoTable>
+        <nameOfIssuer>APPLE INC</nameOfIssuer>
+        <cusip>037833100</cusip>
+        <value>91300000000</value>
+        <shrsOrPrnAmt>
+            <sshPrnamt>503000000</sshPrnamt>
+            <sshPrnamtType>SH</sshPrnamtType>
+        </shrsOrPrnAmt>
+        <investmentDiscretion>SOLE</investmentDiscretion>
+        <votingAuthority>
+            <Sole>503000000</Sole>
+            <Shared>0</Shared>
+            <None>0</None>
+        </votingAuthority>
+    </infoTable>
+    <infoTable>
+        <nameOfIssuer>BANK OF AMER CORP</nameOfIssuer>
+        <cusip>060505104</cusip>
+        <value>34800000000</value>
+        <shrsOrPrnAmt>
+            <sshPrnamt>1032000000</sshPrnamt>
+            <sshPrnamtType>SH</sshPrnamtType>
+        </shrsOrPrnAmt>
+        <investmentDiscretion>SOLE</investmentDiscretion>
+        <votingAuthority>
+            <Sole>1032000000</Sole>
+            <Shared>0</Shared>
+            <None>0</None>
+        </votingAuthority>
+    </infoTable>
+</informationTable>
