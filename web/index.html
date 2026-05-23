@@ -18,8 +18,9 @@
   <header class="topbar">
     <div class="topbar-left">
       <div class="logo">
-        <span class="logo-mark">$</span>
-        <span class="logo-text">SEC<span class="logo-accent">.ANALYTICS</span></span>
+        <span class="logo-mark"></span>
+        <span class="logo-text">SEC<span class="logo-accent">·ANALYTICS</span></span>
+        <span class="logo-version">v0.1</span>
       </div>
       <div class="market-status">
         <span class="status-dot"></span>
@@ -50,12 +51,11 @@
     <div class="hero-content">
       <div class="hero-tag">Data Engineering · Data Analytics · 2026</div>
       <h1 class="hero-title">
-        The signals<br />
-        public companies <span class="accent">can't hide</span>.
+        Institutional-grade intelligence<br />
+        on <span class="accent">every public filer</span>.
       </h1>
       <p class="hero-sub">
-        SEC EDGAR ingests millions of insider transactions, 13F holdings, and 10-K filings every year — all of it free, all of it machine-readable.
-        Bloomberg charges $30K/seat to surface it. We built our own.
+        A free, open data platform built on SEC EDGAR. Insider transactions, 13F holdings, and 10-K filings — ingested, normalized, embedded, and served. Engineered to the same standards as the data desks at the firms paying $30K per Bloomberg seat.
       </p>
 
       <div class="hero-stats">
@@ -297,32 +297,32 @@
     </div>
 
     <div class="arch-diagram">
-      <div class="arch-node node-source">
-        <div class="node-icon">📥</div>
+      <div class="arch-node">
+        <div class="node-num">01</div>
         <div class="node-title">SEC EDGAR</div>
         <div class="node-meta">10 req/s · User-Agent enforced</div>
       </div>
-      <div class="arch-arrow">→</div>
-      <div class="arch-node node-ingest">
-        <div class="node-icon">⚙️</div>
+      <div class="arch-arrow"></div>
+      <div class="arch-node">
+        <div class="node-num">02</div>
         <div class="node-title">Prefect 3 Flows</div>
         <div class="node-meta">Async httpx · tenacity retries · dead-letter</div>
       </div>
-      <div class="arch-arrow">→</div>
-      <div class="arch-node node-parse">
-        <div class="node-icon">🔍</div>
+      <div class="arch-arrow"></div>
+      <div class="arch-node">
+        <div class="node-num">03</div>
         <div class="node-title">Parsers</div>
         <div class="node-meta">Form 4 · 13F-HR · 10-K (lxml · selectolax · arelle)</div>
       </div>
-      <div class="arch-arrow">→</div>
-      <div class="arch-node node-store">
-        <div class="node-icon">🗄️</div>
+      <div class="arch-arrow"></div>
+      <div class="arch-node">
+        <div class="node-num">04</div>
         <div class="node-title">Postgres + pgvector</div>
         <div class="node-meta">raw → staging → marts (dbt) · HNSW index</div>
       </div>
-      <div class="arch-arrow">→</div>
-      <div class="arch-node node-serve">
-        <div class="node-icon">🚀</div>
+      <div class="arch-arrow"></div>
+      <div class="arch-node">
+        <div class="node-num">05</div>
         <div class="node-title">FastAPI + Metabase</div>
         <div class="node-meta">8 endpoints · 6 dashboards · weekly digest</div>
       </div>
@@ -330,32 +330,32 @@
 
     <div class="features-grid">
       <div class="feature">
-        <div class="feature-icon">🛡</div>
+        <div class="feature-marker">F.01</div>
         <h3>EDGAR-Compliant Crawling</h3>
         <p>Token-bucket rate limiter capped at SEC's 10 req/s policy. Descriptive User-Agent on every request. Exponential backoff on 429/5xx. Honors <code>If-Modified-Since</code> on index files.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">♻</div>
+        <div class="feature-marker">F.02</div>
         <h3>Idempotent Ingestion</h3>
         <p>Accession-number-based deduplication. Amendments tracked, never silently overwritten. Failed parses persisted to a dead-letter table with full stack traces for replay.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">🧩</div>
+        <div class="feature-marker">F.03</div>
         <h3>Multi-Format Parsing</h3>
         <p>XML for Form 4 / 13F-HR, XBRL via arelle for fundamentals, HTML via selectolax for 10-K sections. Section detection uses header-text + heuristic positioning.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">🧠</div>
+        <div class="feature-marker">F.04</div>
         <h3>Semantic Risk Search</h3>
         <p>Risk-factor text chunked with 50-token overlap, embedded by BAAI/bge-small-en-v1.5, stored in pgvector with HNSW. Cosine similarity returns top-K in under 100ms.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">🤖</div>
+        <div class="feature-marker">F.05</div>
         <h3>Local LLM Diff Engine</h3>
         <p>Year-over-year risk-factor changes summarized by Llama 3.1 8B running on Ollama. Aggressive caching means the Russell 1000 annual diffs run overnight on a laptop.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon">📊</div>
+        <div class="feature-marker">F.06</div>
         <h3>BI + REST in One</h3>
         <p>Metabase dashboards for analyst-style exploration. FastAPI with auto-generated OpenAPI for programmatic access. Both backed by the same Postgres warehouse.</p>
       </div>

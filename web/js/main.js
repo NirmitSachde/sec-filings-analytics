@@ -35,13 +35,12 @@ function renderTickerTape() {
   track.innerHTML = items.map(t => {
     const sign = t.change >= 0 ? '+' : '';
     const dir = t.change >= 0 ? 'up' : 'down';
-    const arrow = t.change >= 0 ? '▲' : '▼';
     const price = t.price >= 1000 ? t.price.toLocaleString('en-US', { maximumFractionDigits: 2 }) : t.price.toFixed(2);
     return `
       <div class="ticker-item">
         <span class="ticker-symbol">${t.sym}</span>
         <span class="ticker-price">${price}</span>
-        <span class="ticker-change ${dir}">${arrow} ${sign}${t.change.toFixed(2)}%</span>
+        <span class="ticker-change ${dir}">${sign}${t.change.toFixed(2)}%</span>
       </div>
     `;
   }).join('');
@@ -128,8 +127,6 @@ function renderManagersList() {
   });
 }
 
-const treemapColors = ['#d4af37', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
-
 function renderManagerDetail() {
   const m = SEC_DATA.managers.find(x => x.cik === activeManagerCik);
   if (!m) return;
@@ -140,14 +137,16 @@ function renderManagerDetail() {
   document.getElementById('fund-aum').textContent = fmtCurrency(m.aum);
   document.getElementById('fund-positions').textContent = m.n_positions.toLocaleString('en-US');
 
-  // Treemap: portfolio
-  const total = m.portfolio.reduce((s, p) => s + p.value, 0);
-  document.getElementById('treemap').innerHTML = m.portfolio.slice(0, 8).map((p, i) => {
-    const color = treemapColors[i % treemapColors.length];
+  // Treemap — single accent with opacity gradient by position weight
+  const positions = m.portfolio.slice(0, 8);
+  const maxPct = Math.max(...positions.map(p => p.pct));
+  document.getElementById('treemap').innerHTML = positions.map((p) => {
+    const barWidth = Math.max(15, (p.pct / maxPct) * 100);
+    const opacity = Math.max(0.25, p.pct / maxPct);
     return `
-      <div class="treemap-cell" style="--cell-color: ${color};">
+      <div class="treemap-cell" style="--cell-bar-width: ${barWidth}%; --cell-opacity: ${opacity};">
         <div>
-          <div class="tm-ticker" style="color: ${color};">${p.ticker}</div>
+          <div class="tm-ticker">${p.ticker}</div>
           <div class="tm-name">${p.name}</div>
         </div>
         <div>
@@ -189,9 +188,14 @@ renderManagersList();
 renderManagerDetail();
 
 // ───────────── Charts ─────────────
-const chartGridColor = 'rgba(255, 255, 255, 0.05)';
-const chartTickColor = '#5a6072';
-const chartFont = { family: 'JetBrains Mono', size: 11 };
+const chartGridColor = 'rgba(255, 255, 255, 0.04)';
+const chartTickColor = '#5b6271';
+const chartFont = { family: 'JetBrains Mono', size: 10.5 };
+const ACCENT = '#c89240';
+const ACCENT_DIM = '#7a5a28';
+const BUY_COLOR = '#16a86b';
+const SELL_COLOR = '#c2364a';
+const TOOLTIP_BG = '#161a23';
 
 Chart.defaults.color = chartTickColor;
 Chart.defaults.font.family = 'JetBrains Mono';
@@ -207,14 +211,10 @@ function renderHHIChart() {
       datasets: [{
         label: 'Issuers',
         data: SEC_DATA.hhi_distribution.counts,
-        backgroundColor: (ctx) => {
-          const grad = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
-          grad.addColorStop(0, '#d4af37');
-          grad.addColorStop(1, '#8a7028');
-          return grad;
-        },
-        borderRadius: 4,
-        barPercentage: 0.7,
+        backgroundColor: ACCENT,
+        hoverBackgroundColor: '#d9a050',
+        borderRadius: 1,
+        barPercentage: 0.65,
       }],
     },
     options: {
@@ -223,12 +223,13 @@ function renderHHIChart() {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#131826',
-          borderColor: '#d4af37',
+          backgroundColor: TOOLTIP_BG,
+          borderColor: ACCENT_DIM,
           borderWidth: 1,
-          padding: 12,
+          padding: 10,
           titleFont: chartFont,
           bodyFont: chartFont,
+          displayColors: false,
           callbacks: {
             title: (items) => `HHI ${items[0].label}`,
             label: (item) => `${item.parsed.y} issuers`,
@@ -236,8 +237,8 @@ function renderHHIChart() {
         },
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: chartFont } },
-        y: { grid: { color: chartGridColor }, ticks: { font: chartFont }, beginAtZero: true },
+        x: { grid: { display: false }, ticks: { font: chartFont, color: chartTickColor } },
+        y: { grid: { color: chartGridColor, drawTicks: false }, ticks: { font: chartFont, color: chartTickColor, padding: 8 }, beginAtZero: true, border: { display: false } },
       },
     },
   });
@@ -277,28 +278,32 @@ function renderActivityChart() {
           type: 'bar',
           label: 'Buys ($M)',
           data: buys,
-          backgroundColor: 'rgba(16, 185, 129, 0.8)',
-          borderRadius: 3,
+          backgroundColor: BUY_COLOR,
+          borderRadius: 1,
           yAxisID: 'y',
+          barPercentage: 0.7,
         },
         {
           type: 'bar',
           label: 'Sells ($M)',
           data: sells.map(v => -v),
-          backgroundColor: 'rgba(239, 68, 68, 0.8)',
-          borderRadius: 3,
+          backgroundColor: SELL_COLOR,
+          borderRadius: 1,
           yAxisID: 'y',
+          barPercentage: 0.7,
         },
         {
           type: 'line',
           label: 'Buy/Sell Ratio',
           data: ratio,
-          borderColor: '#d4af37',
-          backgroundColor: 'rgba(212, 175, 55, 0.1)',
-          borderWidth: 2,
-          tension: 0.3,
-          pointBackgroundColor: '#d4af37',
-          pointRadius: 4,
+          borderColor: ACCENT,
+          backgroundColor: 'rgba(200, 146, 64, 0.06)',
+          borderWidth: 1.5,
+          tension: 0.25,
+          pointBackgroundColor: ACCENT,
+          pointBorderColor: ACCENT,
+          pointRadius: 3,
+          pointHoverRadius: 5,
           yAxisID: 'y1',
         },
       ],
@@ -310,10 +315,10 @@ function renderActivityChart() {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#131826',
-          borderColor: '#d4af37',
+          backgroundColor: TOOLTIP_BG,
+          borderColor: ACCENT_DIM,
           borderWidth: 1,
-          padding: 12,
+          padding: 10,
           titleFont: chartFont,
           bodyFont: chartFont,
           callbacks: {
@@ -325,19 +330,23 @@ function renderActivityChart() {
         },
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: chartFont }, stacked: false },
+        x: { grid: { display: false }, ticks: { font: chartFont, color: chartTickColor }, stacked: false, border: { color: chartGridColor } },
         y: {
           position: 'left',
-          grid: { color: chartGridColor },
+          grid: { color: chartGridColor, drawTicks: false },
           ticks: {
             font: chartFont,
+            color: chartTickColor,
+            padding: 8,
             callback: (v) => '$' + Math.abs(v) + 'M',
           },
+          border: { display: false },
         },
         y1: {
           position: 'right',
           grid: { display: false },
-          ticks: { font: chartFont, color: '#d4af37' },
+          ticks: { font: chartFont, color: ACCENT, padding: 8 },
+          border: { display: false },
         },
       },
     },
@@ -350,8 +359,6 @@ function renderDiffs() {
   document.getElementById('diff-grid').innerHTML = SEC_DATA.risk_diffs.map(d => {
     const sentClass = d.sentiment === 'more cautionary' ? 'cautionary'
                      : d.sentiment === 'more confident' ? 'confident' : 'similar';
-    const sentIcon = d.sentiment === 'more cautionary' ? '↓'
-                   : d.sentiment === 'more confident' ? '↑' : '→';
     return `
       <div class="diff-card">
         <div class="diff-header">
@@ -359,7 +366,7 @@ function renderDiffs() {
             <div class="diff-ticker">${d.ticker}</div>
             <div class="diff-company">${d.company}</div>
           </div>
-          <div class="diff-year">10-K ${d.year - 1} → ${d.year}</div>
+          <div class="diff-year">10-K ${d.year - 1} / ${d.year}</div>
         </div>
         <div class="diff-section new">
           <span class="diff-section-label">NEW THIS YEAR</span>
@@ -371,7 +378,7 @@ function renderDiffs() {
         </div>
         <div class="diff-section sentiment">
           <span class="diff-section-label">SENTIMENT SHIFT</span>
-          <div class="diff-sentiment ${sentClass}">${sentIcon} ${d.sentiment}</div>
+          <div class="diff-sentiment ${sentClass}">${d.sentiment}</div>
         </div>
       </div>
     `;
