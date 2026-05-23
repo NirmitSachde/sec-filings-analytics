@@ -61,7 +61,7 @@ def parse_form13f(
             filer_cik = int(el.text.strip()) if el.text else 0
         elif tag == "name" and filer_name == "":
             filer_name = el.text.strip() if el.text else ""
-        elif tag == "periodOfReport":
+        elif tag in ("periodOfReport", "reportCalendarOrQuarter"):
             period_of_report = _parse_date(el.text)
 
     info_root = etree.fromstring(info_table_xml)

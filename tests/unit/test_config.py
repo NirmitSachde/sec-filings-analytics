@@ -13,8 +13,9 @@ def test_get_settings_with_env(monkeypatch):
     assert settings.edgar_user_agent == "Test App test@test.com"
 
 
-def test_get_settings_missing_user_agent(monkeypatch):
+def test_get_settings_missing_user_agent(monkeypatch, tmp_path):
     monkeypatch.delenv("EDGAR_USER_AGENT", raising=False)
+    monkeypatch.chdir(tmp_path)
     with pytest.raises(UserAgentNotConfiguredError):
         get_settings()
 

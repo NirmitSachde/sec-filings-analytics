@@ -1,4 +1,9 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_ENV_FILE = _PROJECT_ROOT / ".env"
 
 
 class Settings(BaseSettings):
@@ -17,7 +22,11 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     digest_recipients: str = ""
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {
+        "env_file": str(_ENV_FILE),
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
     @property
     def database_url(self) -> str:

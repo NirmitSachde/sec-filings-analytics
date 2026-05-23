@@ -62,3 +62,4 @@ ollama-data/
 
 # Docker
 postgres-data/
+.claude/

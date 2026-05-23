@@ -1,23 +1,28 @@
 """Semantic search and risk-factor diff endpoints."""
 
 import json
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Query
-from sentence_transformers import SentenceTransformer
 from sqlalchemy import text
 
 from sec_filings.api.models import RiskDiffResponse, RiskSimilarResult
 from sec_filings.db import get_session
 from sec_filings.models import RiskFactorChunk, RiskFactorDiff, TickerCik
 
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
+
 router = APIRouter()
 
-_model: SentenceTransformer | None = None
+_model: "SentenceTransformer | None" = None
 
 
-def _get_model() -> SentenceTransformer:
+def _get_model() -> "SentenceTransformer":
     global _model
     if _model is None:
+        from sentence_transformers import SentenceTransformer
+
         _model = SentenceTransformer("BAAI/bge-small-en-v1.5")
     return _model
 
