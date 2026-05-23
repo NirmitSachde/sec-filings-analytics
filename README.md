@@ -1,8 +1,10 @@
 # SEC Filings Analytics Platform
 
-A data engineering + analytics platform that ingests SEC EDGAR filings (Form 4, 13F-HR, 10-K/10-Q), normalizes them into a queryable warehouse, and surfaces insights through Metabase dashboards and a FastAPI REST service.
+A data engineering + analytics platform that ingests SEC EDGAR filings (Form 4, 13F-HR, 10-K/10-Q), normalizes them into a queryable warehouse, and surfaces insights through Metabase dashboards, a FastAPI REST service, and a static web dashboard.
 
 **Stack:** Python 3.12 · PostgreSQL 16 + pgvector · Prefect 3 · dbt-core · FastAPI · Metabase · Ollama (Llama 3.1 8B)
+
+**🌐 Live demo dashboard:** [GitHub Pages site](web/index.html) — Bloomberg-style analytics terminal with cluster-buying screener, hedge-fund tracker, ownership concentration, and risk-factor drift visualizations.
 
 ## Architecture
 
