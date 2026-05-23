@@ -3,8 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SEC Filings Analytics — Insider Trading & Institutional Holdings Intelligence</title>
-  <meta name="description" content="A free, open-source Bloomberg-lite for SEC EDGAR filings — insider transactions, 13F holdings, 10-K risk-factor analysis." />
+  <title>SEC Filings Analytics — Insider Trading & Institutional Holdings</title>
+  <meta name="description" content="A free, open-source data platform for SEC EDGAR filings — insider transactions, 13F holdings, and 10-K risk-factor analysis." />
+
+  <!-- Security headers (declarative; complements server headers when hosted) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta name="robots" content="index, follow" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -32,8 +38,8 @@
       <a href="#screener">Screener</a>
       <a href="#funds">Funds</a>
       <a href="#concentration">Concentration</a>
+      <a href="#activity">Activity</a>
       <a href="#risk">Risk Factors</a>
-      <a href="#build">The Build</a>
     </nav>
     <div class="topbar-right">
       <span class="data-source">Source · SEC EDGAR</span>
@@ -49,13 +55,13 @@
   <section class="hero">
     <div class="hero-grid"></div>
     <div class="hero-content">
-      <div class="hero-tag">Data Engineering · Data Analytics · 2026</div>
+      <div class="hero-tag">Open data · SEC EDGAR · Updated daily</div>
       <h1 class="hero-title">
-        Institutional-grade intelligence<br />
-        on <span class="accent">every public filer</span>.
+        Insider trades, fund holdings,<br />
+        and 10-K filings <span class="accent">in one place</span>.
       </h1>
       <p class="hero-sub">
-        A free, open data platform built on SEC EDGAR. Insider transactions, 13F holdings, and 10-K filings — ingested, normalized, embedded, and served. Engineered to the same standards as the data desks at the firms paying $30K per Bloomberg seat.
+        Every U.S. public company is legally required to disclose insider trades within two business days, institutional holdings every quarter, and annual reports each year. This dashboard pulls all of it directly from the SEC — no subscriptions, no API keys, no paywalls.
       </p>
 
       <div class="hero-stats">
@@ -78,8 +84,8 @@
       </div>
 
       <div class="hero-cta">
-        <a href="#screener" class="btn-primary">View Live Screeners →</a>
-        <a href="#build" class="btn-secondary">See How It's Built</a>
+        <a href="#screener" class="btn-primary">Open the Screener →</a>
+        <a href="https://github.com/NirmitSachde/sec-filings-analytics" rel="noopener" class="btn-secondary">View on GitHub</a>
       </div>
     </div>
   </section>
@@ -259,139 +265,40 @@
     <div class="diff-grid" id="diff-grid"></div>
   </section>
 
-  <!-- ───────────── The Build ───────────── -->
-  <section class="section build-section" id="build">
-    <div class="section-header">
-      <div class="section-label">06 · THE BUILD</div>
-      <h2 class="section-title">What's Under the Hood</h2>
-      <p class="section-sub">
-        A complete, production-grade data platform — built in five weeks on $0 of paid services.
-      </p>
-    </div>
-
-    <div class="build-stats">
-      <div class="build-stat">
-        <div class="bs-num">78</div>
-        <div class="bs-label">files</div>
-      </div>
-      <div class="build-stat">
-        <div class="bs-num">4,539</div>
-        <div class="bs-label">lines of code</div>
-      </div>
-      <div class="build-stat">
-        <div class="bs-num">22 / 22</div>
-        <div class="bs-label">tests passing</div>
-      </div>
-      <div class="build-stat">
-        <div class="bs-num">8</div>
-        <div class="bs-label">REST endpoints</div>
-      </div>
-      <div class="build-stat">
-        <div class="bs-num">25</div>
-        <div class="bs-label">dbt models</div>
-      </div>
-      <div class="build-stat">
-        <div class="bs-num">$0</div>
-        <div class="bs-label">monthly cost</div>
-      </div>
-    </div>
-
-    <div class="arch-diagram">
-      <div class="arch-node">
-        <div class="node-num">01</div>
-        <div class="node-title">SEC EDGAR</div>
-        <div class="node-meta">10 req/s · User-Agent enforced</div>
-      </div>
-      <div class="arch-arrow"></div>
-      <div class="arch-node">
-        <div class="node-num">02</div>
-        <div class="node-title">Prefect 3 Flows</div>
-        <div class="node-meta">Async httpx · tenacity retries · dead-letter</div>
-      </div>
-      <div class="arch-arrow"></div>
-      <div class="arch-node">
-        <div class="node-num">03</div>
-        <div class="node-title">Parsers</div>
-        <div class="node-meta">Form 4 · 13F-HR · 10-K (lxml · selectolax · arelle)</div>
-      </div>
-      <div class="arch-arrow"></div>
-      <div class="arch-node">
-        <div class="node-num">04</div>
-        <div class="node-title">Postgres + pgvector</div>
-        <div class="node-meta">raw → staging → marts (dbt) · HNSW index</div>
-      </div>
-      <div class="arch-arrow"></div>
-      <div class="arch-node">
-        <div class="node-num">05</div>
-        <div class="node-title">FastAPI + Metabase</div>
-        <div class="node-meta">8 endpoints · 6 dashboards · weekly digest</div>
-      </div>
-    </div>
-
-    <div class="features-grid">
-      <div class="feature">
-        <div class="feature-marker">F.01</div>
-        <h3>EDGAR-Compliant Crawling</h3>
-        <p>Token-bucket rate limiter capped at SEC's 10 req/s policy. Descriptive User-Agent on every request. Exponential backoff on 429/5xx. Honors <code>If-Modified-Since</code> on index files.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-marker">F.02</div>
-        <h3>Idempotent Ingestion</h3>
-        <p>Accession-number-based deduplication. Amendments tracked, never silently overwritten. Failed parses persisted to a dead-letter table with full stack traces for replay.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-marker">F.03</div>
-        <h3>Multi-Format Parsing</h3>
-        <p>XML for Form 4 / 13F-HR, XBRL via arelle for fundamentals, HTML via selectolax for 10-K sections. Section detection uses header-text + heuristic positioning.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-marker">F.04</div>
-        <h3>Semantic Risk Search</h3>
-        <p>Risk-factor text chunked with 50-token overlap, embedded by BAAI/bge-small-en-v1.5, stored in pgvector with HNSW. Cosine similarity returns top-K in under 100ms.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-marker">F.05</div>
-        <h3>Local LLM Diff Engine</h3>
-        <p>Year-over-year risk-factor changes summarized by Llama 3.1 8B running on Ollama. Aggressive caching means the Russell 1000 annual diffs run overnight on a laptop.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-marker">F.06</div>
-        <h3>BI + REST in One</h3>
-        <p>Metabase dashboards for analyst-style exploration. FastAPI with auto-generated OpenAPI for programmatic access. Both backed by the same Postgres warehouse.</p>
-      </div>
-    </div>
-
-    <div class="stack-grid">
-      <div class="stack-header">Tech Stack</div>
-      <div class="stack-rows">
-        <div class="stack-row"><span>Language</span><span class="mono">Python 3.12 · uv · Ruff · mypy --strict</span></div>
-        <div class="stack-row"><span>HTTP</span><span class="mono">httpx (async, HTTP/2) · tenacity</span></div>
-        <div class="stack-row"><span>Parsing</span><span class="mono">lxml · selectolax · arelle (XBRL)</span></div>
-        <div class="stack-row"><span>Data</span><span class="mono">Polars · Pydantic v2</span></div>
-        <div class="stack-row"><span>Database</span><span class="mono">PostgreSQL 16 + pgvector · Alembic</span></div>
-        <div class="stack-row"><span>Orchestration</span><span class="mono">Prefect 3</span></div>
-        <div class="stack-row"><span>Transformation</span><span class="mono">dbt-core 1.8 · dbt-postgres</span></div>
-        <div class="stack-row"><span>ML</span><span class="mono">sentence-transformers · Ollama (Llama 3.1)</span></div>
-        <div class="stack-row"><span>Serving</span><span class="mono">FastAPI · uvicorn · Metabase OSS</span></div>
-        <div class="stack-row"><span>Infra</span><span class="mono">Docker Compose · GitHub Actions CI</span></div>
-        <div class="stack-row"><span>Testing</span><span class="mono">pytest · pytest-asyncio · 80%+ coverage</span></div>
-      </div>
-    </div>
-  </section>
-
   <!-- ───────────── Footer ───────────── -->
   <footer class="footer">
     <div class="footer-left">
-      <div class="footer-logo">SEC.ANALYTICS</div>
-      <div class="footer-tagline">A free, open-source Bloomberg-lite. Built in 2026.</div>
+      <div class="footer-logo">SEC·ANALYTICS</div>
+      <div class="footer-tagline">A free, open-source dashboard for SEC EDGAR data.</div>
+      <div class="footer-meta">All data sourced from sec.gov · Open source · MIT licensed</div>
     </div>
     <div class="footer-right">
-      <div class="footer-meta">All data sourced from SEC EDGAR · sec.gov</div>
-      <div class="footer-meta">No paid APIs · No tracking · No cookies</div>
+      <div class="footer-author">Built by Nirmit Sachde</div>
+      <div class="footer-social">
+        <a href="https://www.linkedin.com/in/nirmit-a-sachde/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" class="social-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.063 2.063 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+          </svg>
+          <span>LinkedIn</span>
+        </a>
+        <a href="https://github.com/NirmitSachde" target="_blank" rel="noopener noreferrer" aria-label="GitHub" class="social-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+        <a href="https://github.com/NirmitSachde/sec-filings-analytics" target="_blank" rel="noopener noreferrer" aria-label="Source code" class="social-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          <span>Source</span>
+        </a>
+      </div>
     </div>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="js/data.js"></script>
   <script src="js/main.js"></script>
 </body>

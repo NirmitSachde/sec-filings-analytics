@@ -1032,34 +1032,63 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ───────────── Footer ───────────── */
 .footer {
-  margin-top: 40px;
+  margin-top: 60px;
   padding: 36px 28px;
   border-top: 1px solid var(--border-1);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 32px;
   max-width: 1280px;
   margin-left: auto;
   margin-right: auto;
 }
+.footer-left { max-width: 460px; }
 .footer-logo {
   font-family: var(--font-display);
   font-weight: 600;
   letter-spacing: 1.2px;
   color: var(--accent);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-size: 13px;
   text-transform: uppercase;
 }
-.footer-tagline { font-size: 12.5px; color: var(--text-secondary); }
+.footer-tagline { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
 .footer-meta {
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--text-muted);
-  margin-bottom: 4px;
-  text-align: right;
   letter-spacing: 0.3px;
 }
+.footer-right { display: flex; flex-direction: column; gap: 12px; align-items: flex-end; }
+.footer-author {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.footer-social { display: flex; gap: 8px; }
+.social-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  transition: all 0.15s;
+  background: var(--bg-elev-1);
+}
+.social-link:hover {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: var(--bg-elev-2);
+}
+.social-link svg { flex-shrink: 0; }
 
 /* ───────────── Reveal animation ───────────── */
 .section { opacity: 0; transform: translateY(12px); transition: opacity 0.5s, transform 0.5s; }
@@ -1090,6 +1119,7 @@ button { font-family: inherit; cursor: pointer; }
   .arch-diagram { flex-direction: column; }
   .arch-arrow { width: 1px; height: 20px; align-self: center; }
   .arch-arrow::after { right: -3px; top: auto; bottom: 0; border-top: 5px solid var(--border-3); border-left: 3.5px solid transparent; border-right: 3.5px solid transparent; border-bottom: none; }
-  .footer { flex-direction: column; gap: 18px; }
-  .footer-meta { text-align: left; }
+  .footer { flex-direction: column; gap: 24px; }
+  .footer-right { align-items: flex-start; }
+  .footer-social { flex-wrap: wrap; }
 }
