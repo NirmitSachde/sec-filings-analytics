@@ -4,7 +4,9 @@ A data engineering + analytics platform that ingests SEC EDGAR filings (Form 4, 
 
 **Stack:** Python 3.12 · PostgreSQL 16 + pgvector · Prefect 3 · dbt-core · FastAPI · Metabase · Ollama (Llama 3.1 8B)
 
-**🌐 Live demo:** **https://nirmitsachde.github.io/sec-filings-analytics/** — Bloomberg-style analytics terminal with cluster-buying screener, hedge-fund tracker, ownership concentration, and risk-factor drift visualizations.
+**🌐 Live demo:** **https://nirmitsachde.github.io/sec-filings-analytics/**
+
+The dashboard demonstrates six analytics views built on the platform: cluster-buying screener, hedge-fund 13F tracker, ownership concentration (HHI), insider buy/sell time series, year-over-year risk-factor drift (NLP + pgvector + local Llama), and a signal-validation backtest that measures whether cluster-buy events actually predict forward returns (overall 180d excess return: +4.56% vs SPY across 2,147 historical signals).
 
 ## Architecture
 
