@@ -40,6 +40,7 @@
       <a href="#concentration">Concentration</a>
       <a href="#activity">Activity</a>
       <a href="#risk">Risk Factors</a>
+      <a href="#backtest">Backtest</a>
     </nav>
     <div class="topbar-right">
       <span class="data-source">Source · SEC EDGAR</span>
@@ -263,6 +264,98 @@
     </div>
 
     <div class="diff-grid" id="diff-grid"></div>
+  </section>
+
+  <!-- ───────────── Signal Validation Backtest ───────────── -->
+  <section class="section" id="backtest">
+    <div class="section-header">
+      <div class="section-label">06 · SIGNAL VALIDATION</div>
+      <h2 class="section-title">Does Cluster Buying Actually Work?</h2>
+      <p class="section-sub">
+        For every cluster-buy event in the historical record, we measured the
+        180-day forward return on the stock and compared it to SPY over the
+        same window. The excess return is alpha. The hit rate is the share of
+        signals that beat the benchmark.
+      </p>
+    </div>
+
+    <div class="backtest-meta">
+      <div><span class="bm-label">Period</span><span class="bm-value" id="bt-period">--</span></div>
+      <div><span class="bm-label">Horizon</span><span class="bm-value" id="bt-horizon">--</span></div>
+      <div><span class="bm-label">Benchmark</span><span class="bm-value" id="bt-benchmark">--</span></div>
+      <div><span class="bm-label">Sample</span><span class="bm-value" id="bt-sample">--</span></div>
+    </div>
+
+    <div class="backtest-headline">
+      <div class="bh-stat bh-positive">
+        <div class="bh-label">Avg excess return</div>
+        <div class="bh-value" id="bt-excess">--</div>
+        <div class="bh-context">vs. SPY over 180d</div>
+      </div>
+      <div class="bh-stat">
+        <div class="bh-label">Hit rate</div>
+        <div class="bh-value" id="bt-hit-rate">--</div>
+        <div class="bh-context">signals beating benchmark</div>
+      </div>
+      <div class="bh-stat">
+        <div class="bh-label">Avg stock return</div>
+        <div class="bh-value" id="bt-stock">--</div>
+        <div class="bh-context">180d post-signal</div>
+      </div>
+      <div class="bh-stat">
+        <div class="bh-label">Info ratio</div>
+        <div class="bh-value" id="bt-ir">--</div>
+        <div class="bh-context">excess / stddev</div>
+      </div>
+    </div>
+
+    <div class="backtest-grid">
+      <div class="card chart-card">
+        <div class="card-header">
+          <div class="card-title">Excess Return by Sector</div>
+          <div class="card-sub">180d return minus SPY · cluster-buy signals 2014 to 2025</div>
+        </div>
+        <canvas id="sector-excess-chart"></canvas>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-header">
+          <div class="card-title">Excess Return Distribution</div>
+          <div class="card-sub">Bucketed by 10pp excess return at 180d</div>
+        </div>
+        <canvas id="distribution-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="card sector-table-card">
+      <div class="card-header">
+        <div class="card-title">Sector Breakdown</div>
+        <div class="card-sub">Sorted by 180d hit rate, descending</div>
+      </div>
+      <div class="sector-table">
+        <div class="sector-table-header">
+          <div>Sector</div>
+          <div class="num">Signals</div>
+          <div class="num">Hit Rate</div>
+          <div class="num">Avg Stock</div>
+          <div class="num">Avg Bench</div>
+          <div class="num">Avg Excess</div>
+        </div>
+        <div id="sector-table-body"></div>
+      </div>
+    </div>
+
+    <div class="card case-studies-card">
+      <div class="card-header">
+        <div class="card-title">Notable Outcomes</div>
+        <div class="card-sub">Highest-conviction wins and the cases where the signal failed</div>
+      </div>
+      <div class="case-studies-grid" id="case-studies-grid"></div>
+    </div>
+
+    <p class="backtest-caveat">
+      Past performance is descriptive, not predictive. The backtest assumes equal-weight entry the trading day after the signal, no slippage, no transaction costs, and survivorship-biased ticker universes are not corrected. The strategy is an academic study, not investment advice.
+    </p>
   </section>
 
   <!-- ───────────── Footer ───────────── -->

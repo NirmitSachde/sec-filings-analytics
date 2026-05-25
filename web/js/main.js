@@ -386,6 +386,158 @@ function renderDiffs() {
 }
 renderDiffs();
 
+// ───────────── Signal Validation Backtest ─────────────
+const fmtPct = (n, signed = false) => {
+  const v = (n * 100);
+  const sign = signed && v > 0 ? '+' : '';
+  return sign + v.toFixed(2) + '%';
+};
+
+function renderBacktest() {
+  const bt = SEC_DATA.backtest;
+  if (!bt) return;
+
+  // Meta
+  document.getElementById('bt-period').textContent = bt.period;
+  document.getElementById('bt-horizon').textContent = bt.horizon_days + ' days';
+  document.getElementById('bt-benchmark').textContent = bt.benchmark;
+  document.getElementById('bt-sample').textContent = bt.overall.n_signals.toLocaleString('en-US') + ' signals';
+
+  // Headline stats
+  document.getElementById('bt-excess').textContent = fmtPct(bt.overall.avg_excess_return_180d, true);
+  document.getElementById('bt-hit-rate').textContent = fmtPct(bt.overall.hit_rate_180d);
+  document.getElementById('bt-stock').textContent = fmtPct(bt.overall.avg_stock_return_180d, true);
+  document.getElementById('bt-ir').textContent = bt.overall.info_ratio_180d.toFixed(3);
+
+  // Sector excess return chart
+  const sectorSorted = [...bt.by_sector].sort((a, b) => b.avg_excess - a.avg_excess);
+  new Chart(document.getElementById('sector-excess-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: sectorSorted.map(s => s.sector),
+      datasets: [{
+        label: 'Avg excess return',
+        data: sectorSorted.map(s => s.avg_excess * 100),
+        backgroundColor: sectorSorted.map(s => s.avg_excess >= 0 ? BUY_COLOR : SELL_COLOR),
+        borderRadius: 1,
+        barPercentage: 0.7,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: TOOLTIP_BG,
+          borderColor: ACCENT_DIM,
+          borderWidth: 1,
+          padding: 10,
+          titleFont: chartFont,
+          bodyFont: chartFont,
+          displayColors: false,
+          callbacks: {
+            label: (ctx) => {
+              const s = sectorSorted[ctx.dataIndex];
+              return [
+                'Excess: +' + (s.avg_excess * 100).toFixed(2) + '%',
+                'Hit rate: ' + (s.hit_rate * 100).toFixed(1) + '%',
+                'n = ' + s.n,
+              ];
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: chartGridColor, drawTicks: false },
+          ticks: { font: chartFont, color: chartTickColor, callback: v => v + '%' },
+          border: { display: false },
+        },
+        y: {
+          grid: { display: false },
+          ticks: { font: chartFont, color: chartTickColor },
+          border: { display: false },
+        },
+      },
+    },
+  });
+
+  // Distribution histogram
+  const dist = bt.distribution_180d;
+  new Chart(document.getElementById('distribution-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: dist.map(d => d.bucket),
+      datasets: [{
+        data: dist.map(d => d.count),
+        backgroundColor: dist.map(d => d.bucket.startsWith('-') || d.bucket.startsWith('<-') ? SELL_COLOR : BUY_COLOR),
+        borderRadius: 1,
+        barPercentage: 0.85,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: TOOLTIP_BG,
+          borderColor: ACCENT_DIM,
+          borderWidth: 1,
+          padding: 10,
+          titleFont: chartFont,
+          bodyFont: chartFont,
+          displayColors: false,
+          callbacks: {
+            title: items => 'Excess return ' + items[0].label,
+            label: ctx => ctx.parsed.y + ' signals',
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: chartFont, color: chartTickColor, maxRotation: 0 }, border: { color: chartGridColor } },
+        y: { grid: { color: chartGridColor, drawTicks: false }, ticks: { font: chartFont, color: chartTickColor, padding: 8 }, border: { display: false } },
+      },
+    },
+  });
+
+  // Sector table
+  const tableSorted = [...bt.by_sector].sort((a, b) => b.hit_rate - a.hit_rate);
+  document.getElementById('sector-table-body').innerHTML = tableSorted.map(s => `
+    <div class="sector-table-row">
+      <div class="sector-name">${s.sector}</div>
+      <div class="num">${s.n}</div>
+      <div class="num ${s.hit_rate > 0.5 ? 'up' : 'down'}">${(s.hit_rate * 100).toFixed(1)}%</div>
+      <div class="num">${(s.avg_stock * 100).toFixed(2)}%</div>
+      <div class="num">${(s.avg_bench * 100).toFixed(2)}%</div>
+      <div class="num ${s.avg_excess > 0 ? 'up' : 'down'}">${s.avg_excess > 0 ? '+' : ''}${(s.avg_excess * 100).toFixed(2)}%</div>
+    </div>
+  `).join('');
+
+  // Case studies
+  document.getElementById('case-studies-grid').innerHTML = bt.case_studies.map(c => {
+    const up = c.excess >= 0;
+    return `
+      <div class="case-study ${up ? 'win' : 'loss'}">
+        <div class="cs-header">
+          <div class="cs-ticker">${c.ticker}</div>
+          <div class="cs-tag">${up ? 'WIN' : 'MISS'}</div>
+        </div>
+        <div class="cs-company">${c.name}</div>
+        <div class="cs-date">Signal · ${c.signal_date}</div>
+        <div class="cs-returns">
+          <div><span class="cs-rl">Stock</span><span class="cs-rv ${c.stock_return >= 0 ? 'up' : 'down'}">${c.stock_return >= 0 ? '+' : ''}${(c.stock_return * 100).toFixed(1)}%</span></div>
+          <div><span class="cs-rl">SPY</span><span class="cs-rv">${c.bench_return >= 0 ? '+' : ''}${(c.bench_return * 100).toFixed(1)}%</span></div>
+          <div><span class="cs-rl">Excess</span><span class="cs-rv ${c.excess >= 0 ? 'up' : 'down'}">${c.excess >= 0 ? '+' : ''}${(c.excess * 100).toFixed(1)}%</span></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+renderBacktest();
+
 // ───────────── Scroll reveal + counter trigger ─────────────
 const sections = document.querySelectorAll('.section, .hero');
 const observer = new IntersectionObserver((entries) => {

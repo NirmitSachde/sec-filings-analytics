@@ -54,3 +54,37 @@ models:
     columns:
       - name: issuer_cik
         tests: [not_null]
+
+  - name: mart_signal_validation_detail
+    description: One row per historical cluster-buy signal with forward returns vs SPY.
+    columns:
+      - name: signal_id
+        tests: [unique, not_null]
+      - name: signal_date
+        tests: [not_null]
+      - name: gics_sector
+        tests: [not_null]
+      - name: excess_return_h180
+        tests: [not_null]
+      - name: beat_benchmark_h180
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1]
+
+  - name: mart_signal_validation
+    description: Aggregate backtest stats by GICS sector plus an ALL row.
+    columns:
+      - name: gics_sector
+        tests: [unique, not_null]
+      - name: n_signals
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+      - name: hit_rate_180d
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
