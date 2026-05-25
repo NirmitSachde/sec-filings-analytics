@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────
-// Sample data — synthesized to be plausible. Real platform pulls live from
+// Sample data : synthesized to be plausible. Real platform pulls live from
 // SEC EDGAR; this static demo bundles representative records.
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ const SEC_DATA = {
     { sym: 'BAC', price: 47.18, change: 0.62 },
   ],
 
-  // Cluster buying — companies with 3+ insiders buying open-market shares
+  // Cluster buying : companies with 3+ insiders buying open-market shares
   cluster_signals: [
     { ticker: 'PLTR', name: 'Palantir Technologies', insiders: 7, total_value: 18420000, avg_price: 87.44, latest_filer: 'Karp, Alexander C.', days_ago: 2 },
     { ticker: 'SNOW', name: 'Snowflake Inc.', insiders: 6, total_buy: 12830000, total_value: 12830000, avg_price: 174.66, latest_filer: 'Slootman, Frank', days_ago: 4 },
@@ -181,7 +181,7 @@ const SEC_DATA = {
     },
   ],
 
-  // Ownership concentration — HHI distribution
+  // Ownership concentration : HHI distribution
   hhi_distribution: {
     buckets: ['<500', '500-1000', '1000-1500', '1500-2500', '2500+'],
     counts: [142, 287, 318, 184, 69],
@@ -199,7 +199,7 @@ const SEC_DATA = {
     { ticker: 'RIVN', name: 'Rivian Automotive', top10_pct: 80.8, hhi: 1980 },
   ],
 
-  // Insider activity — buys vs sells over time
+  // Insider activity : buys vs sells over time
   activity_timeline: {
     months: ['2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05'],
     buys:  [ 412, 380, 525, 610, 484, 372, 290, 348, 540, 720, 612, 580],

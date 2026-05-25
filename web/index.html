@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SEC Filings Analytics — Insider Trading & Institutional Holdings</title>
-  <meta name="description" content="A free, open-source data platform for SEC EDGAR filings — insider transactions, 13F holdings, and 10-K risk-factor analysis." />
+  <title>SEC Filings Analytics · Insider Trading & Institutional Holdings</title>
+  <meta name="description" content="A free, open-source data platform for SEC EDGAR filings. Insider transactions, 13F holdings, and 10-K risk-factor analysis." />
 
   <!-- Security headers (declarative; complements server headers when hosted) -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" />
@@ -31,7 +31,7 @@
       <div class="market-status">
         <span class="status-dot"></span>
         <span class="market-label">LIVE</span>
-        <span class="market-time" id="market-time">—</span>
+        <span class="market-time" id="market-time">--</span>
       </div>
     </div>
     <nav class="topbar-nav">
@@ -61,7 +61,7 @@
         and 10-K filings <span class="accent">in one place</span>.
       </h1>
       <p class="hero-sub">
-        Every U.S. public company is legally required to disclose insider trades within two business days, institutional holdings every quarter, and annual reports each year. This dashboard pulls all of it directly from the SEC — no subscriptions, no API keys, no paywalls.
+        Every U.S. public company is legally required to disclose insider trades within two business days, institutional holdings every quarter, and annual reports each year. This dashboard pulls all of it directly from the SEC. No subscriptions, no API keys, no paywalls.
       </p>
 
       <div class="hero-stats">
@@ -130,7 +130,7 @@
         </select>
       </div>
       <div class="filter-result">
-        <span id="result-count">—</span> signals
+        <span id="result-count">--</span> signals
       </div>
     </div>
 
@@ -168,17 +168,17 @@
       <div class="funds-detail">
         <div class="fund-detail-header">
           <div>
-            <div class="fund-name" id="fund-name">—</div>
+            <div class="fund-name" id="fund-name">--</div>
             <div class="fund-meta">
-              <span id="fund-cik">—</span>
+              <span id="fund-cik">--</span>
               <span class="dot-sep">·</span>
-              <span>Period <span id="fund-period">—</span></span>
+              <span>Period <span id="fund-period">--</span></span>
               <span class="dot-sep">·</span>
-              <span>AUM <span id="fund-aum">—</span></span>
+              <span>AUM <span id="fund-aum">--</span></span>
             </div>
           </div>
           <div class="fund-positions-count">
-            <span id="fund-positions">—</span> positions
+            <span id="fund-positions">--</span> positions
           </div>
         </div>
 
@@ -204,7 +204,7 @@
       <h2 class="section-title">Ownership Concentration</h2>
       <p class="section-sub">
         How concentrated is institutional ownership? Herfindahl-Hirschman Index (HHI) across the Russell 1000.
-        High HHI means a few big holders dominate — and they coordinate the float.
+        High HHI means a few big holders dominate, and they coordinate the float.
       </p>
     </div>
 
@@ -258,7 +258,7 @@
       <h2 class="section-title">Risk Factor Drift</h2>
       <p class="section-sub">
         Year-over-year changes in Item 1A "Risk Factors" sections, embedded with BAAI/bge-small-en-v1.5 and
-        summarized by a local Llama 3.1 8B model. The new risks companies don't broadcast — but disclose.
+        summarized by a local Llama 3.1 8B model. The new risks companies don't broadcast, but disclose.
       </p>
     </div>
 

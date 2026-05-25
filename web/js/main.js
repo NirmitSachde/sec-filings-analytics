@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────
-// SEC Filings Analytics — Dashboard
+// SEC Filings Analytics : Dashboard
 // ─────────────────────────────────────────────────────────────────────────
 
 const fmtCurrency = (n) => {
@@ -137,7 +137,7 @@ function renderManagerDetail() {
   document.getElementById('fund-aum').textContent = fmtCurrency(m.aum);
   document.getElementById('fund-positions').textContent = m.n_positions.toLocaleString('en-US');
 
-  // Treemap — single accent with opacity gradient by position weight
+  // Treemap : single accent with opacity gradient by position weight
   const positions = m.portfolio.slice(0, 8);
   const maxPct = Math.max(...positions.map(p => p.pct));
   document.getElementById('treemap').innerHTML = positions.map((p) => {

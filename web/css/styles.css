@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────
-   SEC.Analytics — institutional-grade UI
+   SEC.Analytics : institutional-grade UI
    Palette inspired by FactSet / Refinitiv / S&P Capital IQ: muted,
    dense, sober. One accent (amber-bronze), one cool secondary (steel),
    plus restricted buy/sell semantics.
@@ -26,17 +26,17 @@ html, body { margin: 0; padding: 0; }
   --text-muted: #5b6271;
   --text-faint: #3d4452;
 
-  /* Accent — muted industrial amber (FactSet-ish) */
+  /* Accent : muted industrial amber (FactSet-ish) */
   --accent: #c89240;
   --accent-bright: #d9a050;
   --accent-dim: #7a5a28;
   --accent-faint: rgba(200, 146, 64, 0.08);
 
-  /* Secondary — steel blue (used sparingly for contrast) */
+  /* Secondary : steel blue (used sparingly for contrast) */
   --steel: #6b8db5;
   --steel-dim: #3d556f;
 
-  /* Semantic — only used for financial signal */
+  /* Semantic : only used for financial signal */
   --buy: #16a86b;
   --buy-bg: rgba(22, 168, 107, 0.12);
   --sell: #c2364a;
@@ -48,7 +48,7 @@ html, body { margin: 0; padding: 0; }
   --font-display: 'Space Grotesk', 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
 
-  /* Radii — tight, industrial */
+  /* Radii : tight, industrial */
   --r-sm: 2px;
   --r-md: 3px;
   --r-lg: 4px;
@@ -587,7 +587,7 @@ button { font-family: inherit; cursor: pointer; }
 .tab-panel { padding: 22px; flex: 1; }
 .tab-panel.hidden { display: none; }
 
-/* Treemap — single accent w/ opacity gradient */
+/* Treemap : single accent w/ opacity gradient */
 .treemap {
   display: grid;
   grid-template-columns: 2fr 1fr;
