@@ -63,3 +63,5 @@ ollama-data/
 # Docker
 postgres-data/
 .claude/
+Screenshot*.png
+*.png

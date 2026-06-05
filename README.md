@@ -1,12 +1,14 @@
 # SEC Filings Analytics Platform
 
+> **Disclaimer.** This is a **non-commercial personal portfolio project** built for skill demonstration. It is **not a product, not a service, and not investment advice**. The figures on the live dashboard are **illustrative sample data unless clearly labeled otherwise**. The author is not a registered investment adviser. No warranty, no liability. Use is entirely at your own risk. Full terms: [DISCLAIMER.md](./DISCLAIMER.md) · [LICENSE](./LICENSE).
+
 A data engineering + analytics platform that ingests SEC EDGAR filings (Form 4, 13F-HR, 10-K/10-Q), normalizes them into a queryable warehouse, and surfaces insights through Metabase dashboards, a FastAPI REST service, and a static web dashboard.
 
 **Stack:** Python 3.12 · PostgreSQL 16 + pgvector · Prefect 3 · dbt-core · FastAPI · Metabase · Ollama (Llama 3.1 8B)
 
 **🌐 Live demo:** **https://nirmitsachde.github.io/sec-filings-analytics/**
 
-The dashboard demonstrates six analytics views built on the platform: cluster-buying screener, hedge-fund 13F tracker, ownership concentration (HHI), insider buy/sell time series, year-over-year risk-factor drift (NLP + pgvector + local Llama), and a signal-validation backtest that measures whether cluster-buy events actually predict forward returns (overall 180d excess return: +4.56% vs SPY across 2,147 historical signals).
+The dashboard demonstrates six analytics views built on the platform: cluster-buying screener, hedge-fund 13F tracker, ownership concentration (HHI), insider buy/sell time series, year-over-year risk-factor drift (NLP + pgvector + local Llama), and a signal-validation backtest that measures whether cluster-buy events would predict forward returns when run against real data.
 
 ## Architecture
 
