@@ -31,7 +31,7 @@ EDGAR (filings + index)
  PostgreSQL 16 + pgvector
       │
       ▼
- dbt-core: staging → intermediate → marts (25+ models)
+ dbt-core: staging → intermediate → marts (20 models)
       │
       ▼
  ┌──────────────────────┬────────────────────────┐
