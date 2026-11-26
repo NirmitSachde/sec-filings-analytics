@@ -4,19 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SEC Filings Analytics · Insider Trading & Institutional Holdings</title>
-  <meta name="description" content="A non-commercial portfolio project demonstrating a data platform built on SEC EDGAR filings: insider transactions, 13F holdings, 10-K risk-factor analysis, and a cluster-buy backtest. Demo data. Not investment advice." />
+  <meta name="description" content="A non-commercial portfolio project demonstrating a data platform built on SEC EDGAR filings: insider transactions, 13F holdings, 10-K risk-factor analysis, and a cluster-buy backtest measured on 12 years of real SEC Form 4 data. Other views use sample data. Not investment advice." />
 
   <!-- Open Graph (LinkedIn, Facebook, Slack) -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://nirmitsachde.github.io/sec-filings-analytics/" />
   <meta property="og:title" content="SEC Filings Analytics · Portfolio project" />
-  <meta property="og:description" content="A non-commercial portfolio project demonstrating a data platform built on SEC EDGAR filings. Demo data. Not investment advice." />
+  <meta property="og:description" content="Does insider cluster buying beat the market? Measured on 12 years of SEC Form 4 filings: the typical signal lagged SPY. A portfolio data platform. Not investment advice." />
   <meta property="og:site_name" content="SEC.Analytics by Nirmit Sachde" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="SEC Filings Analytics · Portfolio project" />
-  <meta name="twitter:description" content="Insider trades, fund holdings, 10-K filings, and a cluster-buy backtest. Demo data. Not investment advice." />
+  <meta name="twitter:description" content="Insider trades, fund holdings, 10-K filings, and a cluster-buy backtest measured on real SEC data. Not investment advice." />
 
   <!-- Author -->
   <meta name="author" content="Nirmit Sachde" />
@@ -71,7 +71,7 @@
   <section class="hero">
     <div class="hero-grid"></div>
     <div class="hero-content">
-      <div class="hero-tag hero-tag-demo">Portfolio project · Demo data · Educational use only</div>
+      <div class="hero-tag hero-tag-demo">Portfolio project · Real-data backtest, sample-data views · Educational use only</div>
       <h1 class="hero-title">
         Insider trades, fund holdings,<br />
         and 10-K filings <span class="accent">in one place</span>.
@@ -287,18 +287,22 @@
       <div class="section-label">06 · SIGNAL VALIDATION</div>
       <h2 class="section-title">Does Cluster Buying Actually Work?</h2>
       <p class="section-sub">
-        For every cluster-buy event in the historical record, we measured the
-        180-day forward return on the stock and compared it to SPY over the
-        same window. The excess return is alpha. The hit rate is the share of
-        signals that beat the benchmark.
+        For every cluster-buy event since 2014, the 180-day return on the stock
+        compared with SPY over the same window. Short answer: not reliably.
+        The typical signal lagged the market, and the average only looks
+        positive because of a handful of huge winners.
       </p>
     </div>
 
-    <div class="demo-banner">
-      <div class="demo-banner-mark">DEMO</div>
+    <div class="demo-banner real-banner">
+      <div class="demo-banner-mark">REAL DATA</div>
       <div class="demo-banner-body">
-        <strong>The numbers below are illustrative sample data. Real measured results are coming soon.</strong>
-        The dbt models and ingestion code in this repository run a real backtest end to end. The full SEC EDGAR backfill plus daily prices is in progress, and these values will be replaced with measured returns from real data as soon as that lands. Values shown today are representative of the type of result this pipeline produces, not actual returns. This dashboard is a portfolio piece for skill demonstration and is not investment advice.
+        <strong>Measured on every original Form 4 filed with the SEC since January 2014.</strong>
+        Source: the SEC's quarterly insider transaction data sets, priced with split and dividend adjusted closes from Yahoo Finance.
+        A signal fires on the filing date (the day a trade became public, not the trade date) when 3 or more distinct insiders filed open-market buys worth $250K or more within 90 days.
+        Entry is the next trading day's close. One signal per company per quarter. A signal only counts if the stock traded on the entry and exit days and its price was within 2x of what the insiders paid.
+        <span id="bt-coverage"></span>
+        Unlike the rest of this dashboard, these numbers are not sample data. They are still descriptive, not a trading strategy, and not investment advice.
       </div>
     </div>
 
@@ -310,10 +314,10 @@
     </div>
 
     <div class="backtest-headline">
-      <div class="bh-stat bh-positive">
-        <div class="bh-label">Avg excess return</div>
-        <div class="bh-value" id="bt-excess">--</div>
-        <div class="bh-context">vs. SPY over 180d</div>
+      <div class="bh-stat">
+        <div class="bh-label">Median excess return</div>
+        <div class="bh-value" id="bt-median">--</div>
+        <div class="bh-context">typical signal vs. SPY, 180d</div>
       </div>
       <div class="bh-stat">
         <div class="bh-label">Hit rate</div>
@@ -326,17 +330,19 @@
         <div class="bh-context">180d post-signal</div>
       </div>
       <div class="bh-stat">
-        <div class="bh-label">Info ratio</div>
-        <div class="bh-value" id="bt-ir">--</div>
-        <div class="bh-context">excess / stddev</div>
+        <div class="bh-label">Avg excess return</div>
+        <div class="bh-value" id="bt-excess">--</div>
+        <div class="bh-context">pulled up by a few big winners</div>
       </div>
     </div>
+
+    <p class="backtest-caveat" id="bt-robust"></p>
 
     <div class="backtest-grid">
       <div class="card chart-card">
         <div class="card-header">
           <div class="card-title">Excess Return by Sector</div>
-          <div class="card-sub">180d return minus SPY · cluster-buy signals 2014 to 2025</div>
+          <div class="card-sub" id="bt-sector-sub">180d return minus SPY · SEC industry office · sectors with 20+ signals</div>
         </div>
         <canvas id="sector-excess-chart"></canvas>
       </div>
@@ -377,7 +383,7 @@
     </div>
 
     <p class="backtest-caveat">
-      Even when populated with real data, the backtest is descriptive, not predictive. It assumes equal-weight entry the trading day after the signal, no slippage, no transaction costs, and the ticker universe is survivorship-biased. Past performance does not predict future returns. Nothing on this site is investment advice. Any action you take based on these numbers is at your own risk. The author makes no warranty and accepts no liability for losses or damages of any kind.
+      The backtest is descriptive, not predictive. It assumes equal-weight entry at the close of the trading day after the filing, no slippage and no transaction costs. It is survivorship-biased: Yahoo Finance has no prices for most delisted, acquired or bankrupt companies, so those signals drop out, and they are more likely to have been losers. Past performance does not predict future returns. Nothing on this site is investment advice. Any action you take based on these numbers is at your own risk. The author makes no warranty and accepts no liability for losses or damages of any kind.
     </p>
   </section>
 
@@ -387,7 +393,7 @@
       <div class="fd-header">DISCLAIMER · READ BEFORE USE</div>
       <div class="fd-body">
         <p><strong>Purpose.</strong> This site is a non-commercial personal portfolio project built to demonstrate data engineering, analytics, and software skills. It is not a product, not a service, and is not offered for sale or for hire.</p>
-        <p><strong>Data status.</strong> The figures, charts, signals, and backtest results displayed are illustrative sample data unless otherwise marked. They are not the output of a live backtest against real market history. When real data is added, it will be sourced from public records (SEC EDGAR, public price feeds) and clearly labeled.</p>
+        <p><strong>Data status.</strong> The Signal Validation backtest is measured on real SEC Form 4 data and Yahoo Finance prices, as labeled in that section. Every other figure, chart and signal on this page is illustrative sample data.</p>
         <p><strong>Not advice.</strong> Nothing on this site constitutes financial, investment, legal, accounting, or tax advice. The author is not a registered investment adviser, broker-dealer, or financial professional. Do not trade or make investment decisions based on anything shown here.</p>
         <p><strong>No warranty, no liability.</strong> All content is provided "as is" without warranty of any kind, express or implied. The author makes no representations as to the accuracy, completeness, suitability, or reliability of any information. Past performance does not predict future results. Trading involves risk, including loss of principal. The author shall not be liable for any losses, damages, or claims arising from use of this site or its information. Use is entirely at your own risk.</p>
         <p><strong>Attribution and independence.</strong> SEC EDGAR data is sourced under the SEC's public-access policy. The author is not affiliated with the U.S. Securities and Exchange Commission, Bloomberg, FactSet, Refinitiv, openinsider.com, Yahoo Finance, or any data provider, exchange, or financial institution. All trademarks belong to their respective owners.</p>
@@ -430,6 +436,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="js/data.js"></script>
+  <script src="js/backtest_data.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

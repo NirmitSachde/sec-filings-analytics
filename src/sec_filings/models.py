@@ -246,3 +246,39 @@ class RiskFactorDiff(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class DailyPrice(Base):
+    """Daily adjusted prices for the signal-validation backtest (one row per ticker and day)."""
+
+    __tablename__ = "daily_prices"
+    __table_args__ = ({"schema": "raw"},)
+
+    ticker: Mapped[str] = mapped_column(String(20), primary_key=True)
+    date: Mapped[datetime.date] = mapped_column(Date, primary_key=True)
+    open: Mapped[float | None] = mapped_column(Float)
+    high: Mapped[float | None] = mapped_column(Float)
+    low: Mapped[float | None] = mapped_column(Float)
+    close: Mapped[float] = mapped_column(Float, nullable=False)
+    adj_close: Mapped[float | None] = mapped_column(Float)
+    volume: Mapped[int | None] = mapped_column(BigInteger)
+
+
+class SecurityMaster(Base):
+    """Ticker to sector mapping.
+
+    The gics_* column names are kept for the dbt models, but the values come from
+    the SEC's own industry classification (EDGAR submissions: ownerOrg office and
+    SIC description), not from MSCI GICS.
+    """
+
+    __tablename__ = "security_master"
+    __table_args__ = ({"schema": "raw"},)
+
+    ticker: Mapped[str] = mapped_column(String(20), primary_key=True)
+    cik: Mapped[int | None] = mapped_column(Integer, index=True)
+    company_name: Mapped[str | None] = mapped_column(String(200))
+    gics_sector: Mapped[str | None] = mapped_column(String(100))
+    gics_industry_group: Mapped[str | None] = mapped_column(String(100))
+    gics_industry: Mapped[str | None] = mapped_column(String(200))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)

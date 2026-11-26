@@ -65,3 +65,4 @@ postgres-data/
 .claude/
 Screenshot*.png
 *.png
+dbt/.user.yml

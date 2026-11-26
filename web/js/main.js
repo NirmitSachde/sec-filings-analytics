@@ -394,7 +394,8 @@ const fmtPct = (n, signed = false) => {
 };
 
 function renderBacktest() {
-  const bt = SEC_DATA.backtest;
+  // Measured results from scripts/export_backtest.py (web/js/backtest_data.js).
+  const bt = window.SEC_BACKTEST;
   if (!bt) return;
 
   // Meta
@@ -402,12 +403,30 @@ function renderBacktest() {
   document.getElementById('bt-horizon').textContent = bt.horizon_days + ' days';
   document.getElementById('bt-benchmark').textContent = bt.benchmark;
   document.getElementById('bt-sample').textContent = bt.overall.n_signals.toLocaleString('en-US') + ' signals';
+  const robust = [];
+  const pct = (v) => (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+  if (bt.vs_small_caps) robust.push('Against small caps (IWM) instead of SPY: median ' + pct(bt.vs_small_caps.median_excess_return_180d) + ', hit rate ' + (bt.vs_small_caps.hit_rate_180d * 100).toFixed(1) + '%.');
+  if (bt.liquid_subset) robust.push('Stocks priced $5 or more only: median ' + pct(bt.liquid_subset.median_excess_return_180d) + ', average ' + pct(bt.liquid_subset.avg_excess_return_180d) + '.');
+  if (bt.by_year) {
+    const yrs = Object.entries(bt.by_year);
+    const neg = yrs.filter(([, v]) => v.median_excess_return_180d < 0).length;
+    robust.push('The median signal lagged SPY in ' + neg + ' of ' + yrs.length + ' signal years.');
+  }
+  document.getElementById('bt-robust').textContent = 'Robustness checks: ' + robust.join(' ');
+  const cov = bt.coverage;
+  if (cov) {
+    document.getElementById('bt-coverage').textContent =
+      cov.events_found.toLocaleString('en-US') + ' signals found; ' +
+      cov.events_priced.toLocaleString('en-US') + ' passed the data checks and are measured below (' +
+      cov.events_dropped.toLocaleString('en-US') + ' dropped: no price history, usually because the company was delisted; ' +
+      'no trading volume or a price that did not match what insiders paid; or less than 180 days old).';
+  }
 
   // Headline stats
+  document.getElementById('bt-median').textContent = fmtPct(bt.overall.median_excess_return_180d, true);
   document.getElementById('bt-excess').textContent = fmtPct(bt.overall.avg_excess_return_180d, true);
   document.getElementById('bt-hit-rate').textContent = fmtPct(bt.overall.hit_rate_180d);
   document.getElementById('bt-stock').textContent = fmtPct(bt.overall.avg_stock_return_180d, true);
-  document.getElementById('bt-ir').textContent = bt.overall.info_ratio_180d.toFixed(3);
 
   // Sector excess return chart
   const sectorSorted = [...bt.by_sector].sort((a, b) => b.avg_excess - a.avg_excess);
@@ -441,7 +460,8 @@ function renderBacktest() {
             label: (ctx) => {
               const s = sectorSorted[ctx.dataIndex];
               return [
-                'Excess: +' + (s.avg_excess * 100).toFixed(2) + '%',
+                'Excess: ' + (s.avg_excess >= 0 ? '+' : '') + (s.avg_excess * 100).toFixed(2) + '%',
+                'Median excess: ' + (s.median_excess >= 0 ? '+' : '') + (s.median_excess * 100).toFixed(2) + '%',
                 'Hit rate: ' + (s.hit_rate * 100).toFixed(1) + '%',
                 'n = ' + s.n,
               ];

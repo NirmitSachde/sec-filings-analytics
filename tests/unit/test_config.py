@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from sec_filings.config import UserAgentNotConfiguredError, get_settings
+from sec_filings.config import Settings, UserAgentNotConfiguredError, get_settings
 
 
 def test_get_settings_with_env(monkeypatch):
@@ -16,6 +16,8 @@ def test_get_settings_with_env(monkeypatch):
 def test_get_settings_missing_user_agent(monkeypatch, tmp_path):
     monkeypatch.delenv("EDGAR_USER_AGENT", raising=False)
     monkeypatch.chdir(tmp_path)
+    # Point the settings at an empty folder so a developer's real .env can't satisfy it.
+    monkeypatch.setitem(Settings.model_config, "env_file", str(tmp_path / ".env"))
     with pytest.raises(UserAgentNotConfiguredError):
         get_settings()
 

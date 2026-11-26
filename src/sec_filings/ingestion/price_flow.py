@@ -1,107 +1,196 @@
 """Daily price ingestion for the signal-validation backtest.
 
-Source: Stooq free end-of-day CSV. No API key, no rate limit beyond
-common-courtesy throttling. Each ticker's full history fits in a single
-GET; we paginate by ticker, not by date.
+Source: Yahoo Finance via yfinance, adjusted for splits and dividends
+(auto_adjust=True), so a return computed from adj_close is a total return.
+Stooq, the original source, now sits behind a browser bot check, so it is no
+longer usable from a script.
 
-The same CSV format covers SPY for the benchmark leg, so we treat it as
-just another row in the input ticker list.
+Only the tickers that actually appear in a cluster-buy event are fetched, plus
+SPY for the benchmark, instead of the whole market.
+
+Known limitation: Yahoo drops most delisted tickers, so signals whose stock was
+later delisted, acquired or went bankrupt cannot be priced and fall out of the
+backtest. That survivorship bias flatters the results; the backtest summary
+reports how many signals were dropped for missing prices.
 """
 
 from __future__ import annotations
 
-import asyncio
-import csv
 import io
 import logging
-from datetime import date
-from typing import Iterable
+import sys
+import time
 
-import httpx
-from sqlalchemy import text
-from sqlalchemy.dialects.postgresql import insert
+import pandas as pd
+import psycopg
+import yfinance as yf
 
-from sec_filings.db import get_engine
-from sec_filings.models import DailyPrice
+from sec_filings.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-STOOQ_URL = "https://stooq.com/q/d/l/?s={symbol}.us&i=d"
-SPY_URL = "https://stooq.com/q/d/l/?s=spy.us&i=d"
+_BATCH = 25
+_START = "2013-06-01"
+_PAUSE_S = 8  # between batches, to stay under Yahoo's rate limit
+# Waits after a rate-limited batch: 2, 5, 10, then 15 minutes (about 2.5 hours in all).
+_RATE_LIMIT_WAITS_S = [120, 300, 600] + [900] * 8
 
 
-async def _fetch_one(client: httpx.AsyncClient, ticker: str) -> list[dict]:
-    """Fetch one ticker's full daily history from Stooq."""
-    url = SPY_URL if ticker.upper() == "SPY" else STOOQ_URL.format(symbol=ticker.lower())
-    resp = await client.get(url, timeout=30.0)
-    resp.raise_for_status()
-    if not resp.text or resp.text.startswith("No data"):
-        logger.warning("No data returned for %s", ticker)
-        return []
+def _dsn() -> str:
+    return get_settings().database_url.replace("postgresql+psycopg://", "postgresql://")
 
-    rows: list[dict] = []
-    reader = csv.DictReader(io.StringIO(resp.text))
-    for r in reader:
-        try:
-            rows.append(
+
+def _yahoo_symbol(ticker: str) -> str:
+    """SEC writes class shares as BRK.B, Yahoo as BRK-B."""
+    return ticker.replace(".", "-")
+
+
+def _is_rate_limit(err: object) -> bool:
+    text = str(err)
+    return "RateLimit" in text or "Too Many Requests" in text
+
+
+class _ErrorCapture(logging.Handler):
+    """yfinance logs per-ticker failures instead of raising; collect them per batch."""
+
+    def __init__(self) -> None:
+        super().__init__(logging.ERROR)
+        self.messages: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.messages.append(record.getMessage())
+
+
+def _download(tickers: list[str]) -> tuple[pd.DataFrame, dict[str, str]]:
+    """Download one batch. Returns long-format rows keyed by SEC ticker, plus per-ticker errors."""
+    mapping = {_yahoo_symbol(t): t for t in tickers}
+    capture = _ErrorCapture()
+    yf_logger = logging.getLogger("yfinance")
+    yf_logger.addHandler(capture)
+    try:
+        raw = yf.download(
+            list(mapping),
+            start=_START,
+            auto_adjust=True,
+            actions=False,
+            group_by="ticker",
+            threads=4,
+            progress=False,
+        )
+    finally:
+        yf_logger.removeHandler(capture)
+    # Messages look like "['ABC', 'XYZ']: YFRateLimitError('Too Many Requests...')".
+    errors: dict[str, str] = {}
+    for msg in capture.messages:
+        for ysym, sec_ticker in mapping.items():
+            if f"'{ysym}'" in msg:
+                errors[sec_ticker] = msg[-300:]
+    if raw is None or raw.empty:
+        return pd.DataFrame(), errors
+    frames = []
+    for ysym, sec_ticker in mapping.items():
+        if ysym not in raw.columns.get_level_values(0):
+            continue
+        df = raw[ysym].dropna(subset=["Close"])
+        if df.empty:
+            continue
+        frames.append(
+            pd.DataFrame(
                 {
-                    "ticker": ticker.upper(),
-                    "price_date": date.fromisoformat(r["Date"]),
-                    "open": float(r["Open"]),
-                    "high": float(r["High"]),
-                    "low": float(r["Low"]),
-                    "close": float(r["Close"]),
-                    "adj_close": float(r["Close"]),  # Stooq already adjusts
-                    "volume": int(float(r.get("Volume") or 0)),
+                    "ticker": sec_ticker,
+                    "date": df.index.date,
+                    "open": df["Open"].to_numpy(),
+                    "high": df["High"].to_numpy(),
+                    "low": df["Low"].to_numpy(),
+                    "close": df["Close"].to_numpy(),
+                    "adj_close": df["Close"].to_numpy(),  # auto_adjust: Close is adjusted
+                    "volume": df["Volume"].fillna(0).astype("int64").to_numpy(),
                 }
             )
-        except (KeyError, ValueError) as exc:
-            logger.debug("Skipping malformed row for %s: %s", ticker, exc)
-    return rows
+        )
+    return (pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()), errors
 
 
-async def fetch_prices(tickers: Iterable[str], concurrency: int = 5) -> int:
-    """Fetch and upsert daily prices for the given tickers. Returns row count."""
-    sem = asyncio.Semaphore(concurrency)
-    written = 0
+def fetch_prices(tickers: list[str], refresh: bool = False) -> tuple[int, int]:
+    """Fetch prices into raw.daily_prices. Returns (rows written, tickers priced).
 
-    async with httpx.AsyncClient(http2=True, headers={"User-Agent": "sec-filings-analytics/0.1"}) as client:
-
-        async def _worker(t: str) -> list[dict]:
-            async with sem:
-                return await _fetch_one(client, t)
-
-        results = await asyncio.gather(*(_worker(t) for t in tickers), return_exceptions=True)
-
-    engine = get_engine()
-    with engine.begin() as conn:
-        for r in results:
-            if isinstance(r, Exception):
-                logger.error("Fetch failed: %s", r)
-                continue
-            if not r:
-                continue
-            stmt = insert(DailyPrice).values(r)
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["ticker", "price_date"],
-                set_={c: stmt.excluded[c] for c in ("open", "high", "low", "close", "adj_close", "volume")},
+    Resumable: tickers already priced, or already confirmed missing on Yahoo
+    (raw.price_fetch_misses), are skipped unless refresh=True. Batches that hit
+    Yahoo's rate limit wait and retry instead of being recorded as missing.
+    """
+    tickers = sorted({t.upper() for t in tickers if t})
+    rows = priced = 0
+    with psycopg.connect(_dsn()) as conn, conn.cursor() as cur:
+        cur.execute(
+            "create table if not exists raw.price_fetch_misses ("
+            "ticker varchar(20) primary key, reason text, checked_at timestamptz default now())"
+        )
+        if not refresh:
+            cur.execute(
+                "select ticker from raw.daily_prices group by ticker "
+                "union select ticker from raw.price_fetch_misses"
             )
-            conn.execute(stmt)
-            written += len(r)
+            done = {r[0] for r in cur.fetchall()}
+            tickers = [t for t in tickers if t not in done]
+        conn.commit()
+        logger.info("%d tickers to fetch", len(tickers))
 
-    return written
+        i = 0
+        while i < len(tickers):
+            batch = tickers[i : i + _BATCH]
+            for wait in [*_RATE_LIMIT_WAITS_S, None]:
+                df, errors = _download(batch)
+                limited = [t for t, e in errors.items() if _is_rate_limit(e)]
+                if not limited:
+                    break
+                if wait is None:
+                    raise RuntimeError(
+                        "Yahoo kept rate limiting; rerun later, finished batches are kept"
+                    )
+                logger.warning("rate limited (%d tickers), waiting %ds", len(limited), wait)
+                time.sleep(wait)
+
+            got = set(df["ticker"].unique()) if not df.empty else set()
+            if got:
+                cur.execute("DELETE FROM raw.daily_prices WHERE ticker = ANY(%s)", (list(got),))
+                buf = io.StringIO()
+                df.to_csv(buf, index=False, header=False)
+                with cur.copy(
+                    "COPY raw.daily_prices "
+                    "(ticker, date, open, high, low, close, adj_close, volume) "
+                    "FROM STDIN WITH (FORMAT csv)"
+                ) as cp:
+                    cp.write(buf.getvalue())
+            for t in batch:
+                if t not in got:
+                    cur.execute(
+                        "insert into raw.price_fetch_misses (ticker, reason) values (%s, %s) "
+                        "on conflict (ticker) do update "
+                        "set reason = excluded.reason, checked_at = now()",
+                        (t, errors.get(t, "no rows returned")[:500]),
+                    )
+            conn.commit()
+            rows += len(df)
+            priced += len(got)
+            logger.info("batch %d-%d: %d of %d priced", i, i + len(batch), len(got), len(batch))
+            i += _BATCH
+            time.sleep(_PAUSE_S)
+    return rows, priced
 
 
-async def fetch_universe_for_backtest() -> int:
-    """Fetch the Russell-1000-ish universe plus SPY benchmark."""
-    engine = get_engine()
-    with engine.connect() as conn:
-        tickers = [row[0] for row in conn.execute(text("select ticker from ref.ticker_cik where is_active"))]
-    tickers.append("SPY")
-    logger.info("Fetching %d tickers", len(tickers))
-    return await fetch_prices(tickers)
+def tickers_for_backtest() -> list[str]:
+    """Every ticker that has a cluster-buy event (needs `dbt run` of the intermediate models)."""
+    with psycopg.connect(_dsn()) as conn, conn.cursor() as cur:
+        cur.execute(
+            "select distinct issuer_ticker from public_intermediate.int_cluster_buy_events "
+            "where issuer_ticker is not null"
+        )
+        return [r[0] for r in cur.fetchall()]
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    asyncio.run(fetch_universe_for_backtest())
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    wanted = sys.argv[1:] or tickers_for_backtest()
+    wanted.append("SPY")
+    n_rows, n_priced = fetch_prices(wanted)
+    print(f"Priced {n_priced} new tickers this run ({n_rows:,} rows)")

@@ -1,5 +1,12 @@
+{{ config(
+    materialized='table',
+    post_hook="create index on {{ this }} (ticker, price_date)"
+) }}
+
 -- Staging: daily price history. One row per (ticker, date).
 -- Filters out obvious junk (zero/negative prices, non-trading days).
+-- Materialized and indexed on (ticker, price_date): the backtest does tens of
+-- thousands of "first trading day on or after" lookups against it.
 
 select
     upper(ticker) as ticker,

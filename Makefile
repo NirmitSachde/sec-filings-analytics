@@ -1,4 +1,4 @@
-.PHONY: up down build test lint type-check fmt ci migrate dbt-run ingest
+.PHONY: up down build test lint type-check fmt ci migrate dbt-run ingest backfill-form4 backtest
 
 up:
 	docker compose up -d
@@ -59,3 +59,18 @@ serve:
 
 install:
 	uv sync --all-extras
+
+# ---- Measured cluster-buy backtest (real data) ----
+# 1. download the SEC quarterly insider data sets into data/raw/form345 (see scripts/download_form345.sh)
+# 2. load Form 4 rows, map tickers, find events, price them, classify sectors, export to the dashboard
+backfill-form4:
+	bash scripts/download_form345.sh
+	uv run python -m sec_filings.ingestion.form345_bulk data/raw/form345
+
+backtest:
+	uv run python -m sec_filings.ingestion.security_master tickers
+	cd dbt && DBT_PROFILES_DIR=. uv run dbt run --select +int_cluster_buy_events
+	uv run python -m sec_filings.ingestion.price_flow
+	uv run python -m sec_filings.ingestion.security_master sectors
+	cd dbt && DBT_PROFILES_DIR=. uv run dbt run --select +mart_signal_validation
+	uv run python scripts/export_backtest.py
