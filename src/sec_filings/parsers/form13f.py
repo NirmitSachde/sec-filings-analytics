@@ -21,6 +21,11 @@ def _text(element: etree._Element | None) -> str | None:
     return text.strip() if text else None
 
 
+def _local(el: etree._Element) -> str:
+    """Local tag name, or "" for comments and processing instructions."""
+    return etree.QName(el).localname if isinstance(el.tag, str) else ""
+
+
 def _int_or_zero(element: etree._Element | None) -> int:
     val = _text(element)
     if val is None:
@@ -31,13 +36,17 @@ def _int_or_zero(element: etree._Element | None) -> int:
         return 0
 
 
-def _parse_date(val: str | None) -> datetime.date:
+def _parse_date(val: str | None) -> datetime.date | None:
+    """EDGAR 13F primary docs write dates as MM-DD-YYYY; accept ISO too."""
     if val is None:
-        return datetime.date.today()
-    try:
-        return datetime.date.fromisoformat(val.strip())
-    except ValueError:
-        return datetime.date.today()
+        return None
+    val = val.strip()
+    for fmt in ("%m-%d-%Y", "%Y-%m-%d"):
+        try:
+            return datetime.datetime.strptime(val, fmt).date()
+        except ValueError:
+            continue
+    return None
 
 
 def parse_form13f(
@@ -53,16 +62,20 @@ def parse_form13f(
     primary_root = etree.fromstring(primary_doc_xml)
     filer_cik = 0
     filer_name = ""
-    period_of_report = datetime.date.today()
+    period_of_report: datetime.date | None = None
 
     for el in primary_root.iter():
-        tag = etree.QName(el).localname if isinstance(el.tag, str) else ""
+        tag = _local(el)
         if tag == "cik":
             filer_cik = int(el.text.strip()) if el.text else 0
         elif tag == "name" and filer_name == "":
             filer_name = el.text.strip() if el.text else ""
-        elif tag in ("periodOfReport", "reportCalendarOrQuarter"):
+        elif tag in ("periodOfReport", "reportCalendarOrQuarter") and period_of_report is None:
             period_of_report = _parse_date(el.text)
+
+    if period_of_report is None:
+        # Without a report period the pre-2022 thousands scaling cannot be decided.
+        raise ValueError("13F primary document has no readable periodOfReport")
 
     info_root = etree.fromstring(info_table_xml)
 
@@ -72,7 +85,7 @@ def parse_form13f(
     if not info_tables:
         info_tables = info_root.findall(".//ns:infoTable", _NS_13F_ALT)
     if not info_tables:
-        info_tables = [el for el in info_root.iter() if etree.QName(el).localname == "infoTable"]
+        info_tables = [el for el in info_root.iter() if _local(el) == "infoTable"]
 
     # Detect if pre-2022 (values in thousands) or post-2022 (values in dollars)
     is_pre_2022 = period_of_report.year < 2022
@@ -85,7 +98,7 @@ def parse_form13f(
                 el = table.find(f"ns:{tag}", _NS_13F_ALT)
             if el is None:
                 for child in table.iter():
-                    if etree.QName(child).localname == tag:
+                    if _local(child) == tag:
                         return child
             return el
 
@@ -104,7 +117,7 @@ def parse_form13f(
                 sh_el = shrs_el.find("ns:sshPrnamt", _NS_13F_ALT)
             if sh_el is None:
                 for child in shrs_el.iter():
-                    if etree.QName(child).localname == "sshPrnamt":
+                    if _local(child) == "sshPrnamt":
                         sh_el = child
                         break
             shares = _int_or_zero(sh_el)
@@ -114,7 +127,7 @@ def parse_form13f(
                 type_el = shrs_el.find("ns:sshPrnamtType", _NS_13F_ALT)
             if type_el is None:
                 for child in shrs_el.iter():
-                    if etree.QName(child).localname == "sshPrnamtType":
+                    if _local(child) == "sshPrnamtType":
                         type_el = child
                         break
             share_type = _text(type_el) or "SH"
@@ -127,7 +140,7 @@ def parse_form13f(
         voting_none = 0
         if voting_el is not None:
             for child in voting_el.iter():
-                local = etree.QName(child).localname
+                local = _local(child)
                 if local == "Sole":
                     voting_sole = _int_or_zero(child)
                 elif local == "Shared":

@@ -99,6 +99,45 @@ def test_extract_sections_long_paragraph_mentioning_item_is_not_a_header():
     assert _extract_sections(html, "acc", 1) == []
 
 
+_RISK_PARAGRAPHS = [
+    "Demand for our sensors depends on capital spending by utilities and factories.",
+    "We rely on a small number of contract manufacturers in two countries.",
+    "Cyber attacks on our cloud monitoring service could expose customer data.",
+    "Changes in trade policy could raise the cost of imported components.",
+    "We may not be able to hire and keep enough experienced engineers.",
+    "Our debt agreements limit how we can use cash and take on new borrowing.",
+]
+
+
+def test_extract_sections_last_section_survives_many_empty_elements():
+    # Regression: empty <br> nodes count toward traversal positions but not toward
+    # the text node list, so ending the last section at len(text nodes) dropped it.
+    html = _html(
+        "<h2>Item 1A. Risk Factors</h2>"
+        + "<br>" * 30
+        + "".join(f"<p>{para}</p>" for para in _RISK_PARAGRAPHS)
+    )
+
+    (section,) = _extract_sections(html, "acc", 7)
+
+    assert section.section == "item_1a_risk_factors"
+    assert section.text == "\n".join(_RISK_PARAGRAPHS)
+    assert section.char_count == len(section.text)
+
+
+def test_extract_sections_empty_elements_before_last_of_several_sections():
+    html = _html(
+        f"<h2>Item 1. Business</h2><p>{_LONG_BUSINESS}</p>"
+        "<h2>Item 1A. Risk Factors</h2>"
+        + "<div></div><br>" * 40
+        + "".join(f"<p>{para}</p>" for para in _RISK_PARAGRAPHS)
+    )
+    sections = _extract_sections(html, "acc", 7)
+    assert [s.section for s in sections] == ["item_1_business", "item_1a_risk_factors"]
+    assert _RISK_PARAGRAPHS[-1] in sections[1].text
+    assert _LONG_BUSINESS not in sections[1].text
+
+
 def test_extract_sections_no_matching_headers():
     html = _html(f"<h2>Introduction</h2><p>{_LONG_RISK}</p>")
     assert _extract_sections(html, "acc", 1) == []

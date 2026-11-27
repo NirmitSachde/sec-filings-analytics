@@ -8,6 +8,7 @@ Two extraction paths:
 import contextlib
 import datetime
 import re
+import sys
 from typing import Any
 
 from selectolax.lexbor import LexborHTMLParser as HTMLParser
@@ -84,9 +85,9 @@ def _extract_sections(
 
     sections: list[FilingSectionRecord] = []
     for h_idx, (section_name, start_pos) in enumerate(unique_headers):
-        end_pos = (
-            unique_headers[h_idx + 1][1] if h_idx + 1 < len(unique_headers) else len(all_text_nodes)
-        )
+        # Positions are traversal indexes (empty nodes included), so the last
+        # section runs to the end of the document, not to len(all_text_nodes).
+        end_pos = unique_headers[h_idx + 1][1] if h_idx + 1 < len(unique_headers) else sys.maxsize
 
         section_text_parts: list[str] = []
         for node_idx, text in all_text_nodes:

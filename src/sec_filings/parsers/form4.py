@@ -65,7 +65,21 @@ def _check_10b5_1(root: etree._Element) -> bool:
     return False
 
 
-def parse_form4(xml_content: str | bytes, accession_number: str) -> Form4Filing:
+def parse_form4(
+    xml_content: str | bytes,
+    accession_number: str,
+    filing_date: datetime.date | None = None,
+) -> Form4Filing:
+    """Parse a Form 4 ownership document.
+
+    filing_date is the date the filing was accepted by EDGAR (from the filing
+    index). The XML itself does not carry it; periodOfReport is the date of the
+    earliest transaction, so it is used only as a fallback.
+
+    A joint filing lists several reporting owners for the same transactions.
+    Rows are attributed to the first owner only, so one filing's shares are
+    counted once (the same rule the bulk Form 4 loader uses).
+    """
     if isinstance(xml_content, str):
         xml_content = xml_content.encode("utf-8")
 
@@ -80,7 +94,17 @@ def parse_form4(xml_content: str | bytes, accession_number: str) -> Form4Filing:
     transactions: list[Form4Transaction] = []
     tx_index = 0
 
-    for owner_el in root.findall(".//reportingOwner"):
+    if filing_date is None:
+        filing_date = _parse_date(root.find(".//periodOfReport"))
+    if filing_date is None:
+        dates = [
+            d
+            for d in (_parse_date(el) for el in root.iterfind(".//transactionDate/value"))
+            if d is not None
+        ]
+        filing_date = min(dates) if dates else datetime.date.today()
+
+    for owner_el in root.findall(".//reportingOwner")[:1]:
         owner_id = owner_el.find("reportingOwnerId")
         owner_rel = owner_el.find("reportingOwnerRelationship")
 
@@ -94,9 +118,6 @@ def parse_form4(xml_content: str | bytes, accession_number: str) -> Form4Filing:
         )
         is_other = _bool_val(owner_rel.find("isOther")) if owner_rel is not None else False
         officer_title = _text(owner_rel.find("officerTitle")) if owner_rel is not None else None
-
-        filing_date_el = root.find(".//periodOfReport")
-        filing_date = _parse_date(filing_date_el) or datetime.date.today()
 
         for nd_tx in root.findall(".//nonDerivativeTransaction"):
             sec_title = _text(nd_tx.find(".//securityTitle/value")) or ""

@@ -12,7 +12,11 @@ from sec_filings.models import FilingIndex
 
 _FORM_TYPES = {"4", "4/A", "13F-HR", "13F-HR/A", "10-K", "10-K/A", "10-Q", "10-Q/A"}
 
-_INDEX_LINE_RE = re.compile(r"^(.{12})\s+(.{62})\s+(\d{10})\s+(\d{4}-\d{2}-\d{2})\s+(.+)$")
+# form.idx columns are fixed width (form 17, company 62, CIK 12, date 12, then the
+# file name), but CIKs are not zero padded and long values can run into the next
+# column, so parse from both ends instead of by position. The company name is the
+# raw middle text, so repeated spaces inside it are kept.
+_INDEX_LINE_RE = re.compile(r"^(\S+)\s+(.*?)\s+(\d{1,10})\s+(\d{4}-\d{2}-\d{2})\s+(\S+)\s*$")
 
 
 def _quarter_for_month(month: int) -> int:
@@ -63,22 +67,22 @@ async def fetch_and_parse_index(client: EdgarClient, url: str) -> list[dict[str,
         # Fixed-width parsing: form_type, company_name, cik, date, filename
         match = _INDEX_LINE_RE.match(line)
         if match:
-            form_type_raw = match.group(1).strip()
-            company_name = match.group(2).strip()
-            cik = int(match.group(3))
-            date_filed = datetime.date.fromisoformat(match.group(4))
-            filename = match.group(5).strip()
+            form_type_raw, company_name, cik_str, date_filed_str, filename = (
+                g.strip() for g in match.groups()
+            )
         else:
             # Fallback: split by whitespace
             form_type_raw = parts[0]
             filename = parts[-1]
             date_filed_str = parts[-2]
-            cik = int(parts[-3])
+            cik_str = parts[-3]
             company_name = " ".join(parts[1:-3])
-            try:
-                date_filed = datetime.date.fromisoformat(date_filed_str)
-            except ValueError:
-                continue
+        # A malformed line (impossible date, non-numeric CIK) is skipped, not fatal.
+        try:
+            cik = int(cik_str)
+            date_filed = datetime.date.fromisoformat(date_filed_str)
+        except ValueError:
+            continue
 
         accession = filename.split("/")[-1].replace(".txt", "").replace("-index.htm", "")
         if not accession:

@@ -151,32 +151,106 @@ _TWO_OWNER_SALE = b"""<?xml version="1.0"?>
 """
 
 
-def test_parse_form4_multiple_owners_each_get_every_transaction():
+def test_parse_form4_joint_filing_attributes_rows_to_first_owner_only():
+    # Both owners report the same single sale. Repeating the rows per owner would
+    # count the 1,500 shares twice, so only the first owner gets them.
     result = parse_form4(_TWO_OWNER_SALE, "0000789019-24-000777")
 
-    assert len(result.transactions) == 2
-    a, gp = result.transactions
-    assert [t.transaction_index for t in result.transactions] == [0, 1]
-    assert (a.owner_cik, a.owner_name) == (11, "Fund A LP")
-    assert (gp.owner_cik, gp.owner_name) == (22, "Fund A GP LLC")
-    assert a.is_ten_percent_owner is True and a.is_other is False
-    assert gp.is_other is True and gp.is_ten_percent_owner is False
-    for tx in result.transactions:
-        assert tx.accession_number == "0000789019-24-000777"
-        assert tx.issuer_cik == 789019
-        assert tx.issuer_name == "Microsoft Corp"
-        assert tx.issuer_ticker is None
-        assert tx.filing_date == datetime.date(2024, 5, 1)
-        assert tx.transaction_date == datetime.date(2024, 4, 30)
-        assert tx.transaction_code == "S"
-        assert tx.shares == 1500.0
-        assert tx.price_per_share == 410.25
-        assert tx.shares_after == 98500.0
-        assert tx.direct_or_indirect == "I"
-        assert tx.is_derivative is False
-        assert tx.is_10b5_1 is False
-        assert tx.is_director is False and tx.is_officer is False
-        assert tx.officer_title is None
+    (tx,) = result.transactions
+    assert tx.transaction_index == 0
+    assert (tx.owner_cik, tx.owner_name) == (11, "Fund A LP")
+    assert tx.is_ten_percent_owner is True and tx.is_other is False
+    assert all(t.owner_cik != 22 for t in result.transactions)
+    assert sum(t.shares or 0 for t in result.transactions) == 1500.0
+    assert tx.accession_number == "0000789019-24-000777"
+    assert tx.issuer_cik == 789019
+    assert tx.issuer_name == "Microsoft Corp"
+    assert tx.issuer_ticker is None
+    assert tx.filing_date == datetime.date(2024, 5, 1)
+    assert tx.transaction_date == datetime.date(2024, 4, 30)
+    assert tx.transaction_code == "S"
+    assert tx.shares == 1500.0
+    assert tx.price_per_share == 410.25
+    assert tx.shares_after == 98500.0
+    assert tx.direct_or_indirect == "I"
+    assert tx.is_derivative is False
+    assert tx.is_10b5_1 is False
+    assert tx.is_director is False and tx.is_officer is False
+    assert tx.officer_title is None
+
+
+def test_parse_form4_joint_filing_indexes_every_transaction_once():
+    # Two owners, one non-derivative and one derivative row: two rows, not four.
+    xml = _TWO_OWNER_SALE.replace(
+        b"</nonDerivativeTable>",
+        b"</nonDerivativeTable><derivativeTable><derivativeTransaction>"
+        b"<securityTitle><value>Option</value></securityTitle>"
+        b"</derivativeTransaction></derivativeTable>",
+    )
+    result = parse_form4(xml, "acc")
+    assert [(t.transaction_index, t.is_derivative, t.owner_cik) for t in result.transactions] == [
+        (0, False, 11),
+        (1, True, 11),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# filing_date resolution
+# ---------------------------------------------------------------------------
+
+
+def _dated(period: str | None, *tx_dates: str | None, derivative_date: str | None = None) -> str:
+    period_xml = f"<periodOfReport>{period}</periodOfReport>" if period is not None else ""
+    rows = "".join(
+        "<nonDerivativeTransaction>"
+        + (f"<transactionDate><value>{d}</value></transactionDate>" if d is not None else "")
+        + "</nonDerivativeTransaction>"
+        for d in tx_dates
+    )
+    deriv = (
+        "<derivativeTable><derivativeTransaction><transactionDate>"
+        f"<value>{derivative_date}</value></transactionDate></derivativeTransaction>"
+        "</derivativeTable>"
+        if derivative_date is not None
+        else ""
+    )
+    return (
+        f"<ownershipDocument>{period_xml}"
+        "<reportingOwner><reportingOwnerId><rptOwnerCik>1</rptOwnerCik></reportingOwnerId>"
+        f"</reportingOwner><nonDerivativeTable>{rows}</nonDerivativeTable>{deriv}"
+        "</ownershipDocument>"
+    )
+
+
+def _filing_dates(result) -> set[datetime.date]:
+    return {t.filing_date for t in result.transactions}
+
+
+def test_parse_form4_explicit_filing_date_wins_over_period_of_report():
+    filed = datetime.date(2024, 3, 18)
+    result = parse_form4(_dated("2024-03-15", "2024-03-14"), "acc", filing_date=filed)
+    assert _filing_dates(result) == {filed}
+    # Transaction dates are untouched.
+    assert result.transactions[0].transaction_date == datetime.date(2024, 3, 14)
+
+
+def test_parse_form4_filing_date_falls_back_to_period_of_report():
+    result = parse_form4(_dated("2024-03-15", "2024-03-01"), "acc")
+    assert _filing_dates(result) == {datetime.date(2024, 3, 15)}
+
+
+@pytest.mark.parametrize("period", [None, "not-a-date"], ids=["missing", "unreadable"])
+def test_parse_form4_filing_date_falls_back_to_earliest_transaction_date(period):
+    xml = _dated(period, "2024-03-12", "bad", None, "2024-03-10", derivative_date="2024-03-05")
+    result = parse_form4(xml, "acc")
+    assert len(result.transactions) == 5
+    # The derivative row's date is the earliest readable one.
+    assert _filing_dates(result) == {datetime.date(2024, 3, 5)}
+
+
+def test_parse_form4_filing_date_falls_back_to_today_without_any_date():
+    result = parse_form4(_dated(None, "bad", None), "acc")
+    assert _filing_dates(result) == {datetime.date.today()}
 
 
 _SPARSE = """<ownershipDocument>
@@ -215,7 +289,7 @@ def test_parse_form4_sparse_filing_uses_safe_defaults():
         assert tx.owner_cik == 0
         assert tx.owner_name == ""
         assert not any([tx.is_director, tx.is_officer, tx.is_ten_percent_owner, tx.is_other])
-        # Unparseable periodOfReport falls back to today.
+        # Unparseable periodOfReport and transaction dates fall back to today.
         assert tx.filing_date == datetime.date.today()
 
     assert first.transaction_date is None

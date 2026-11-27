@@ -80,11 +80,24 @@ def test_int_or_zero(text, expected):
     assert form13f._int_or_zero(el) == expected
 
 
-def test_parse_date_helper():
-    today = datetime.date.today()
-    assert form13f._parse_date(None) == today
-    assert form13f._parse_date(" 2021-12-31 ") == datetime.date(2021, 12, 31)
-    assert form13f._parse_date("12-31-2021") == today
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # EDGAR 13F primary documents write MM-DD-YYYY.
+        ("12-31-2023", datetime.date(2023, 12, 31)),
+        (" 03-31-2021\n", datetime.date(2021, 3, 31)),
+        # ISO is accepted too.
+        (" 2021-12-31 ", datetime.date(2021, 12, 31)),
+        (None, None),
+        ("", None),
+        ("31-12-2023", None),
+        ("2023/12/31", None),
+        ("13-01-2023", None),
+        ("Q4 2023", None),
+    ],
+)
+def test_parse_date_helper(text, expected):
+    assert form13f._parse_date(text) == expected
 
 
 # ---------------------------------------------------------------------------
@@ -125,10 +138,44 @@ def test_parse_form13f_2022_and_later_values_are_dollars():
     assert result.holdings[0].value == 2500
 
 
-def test_parse_form13f_missing_period_defaults_to_today_and_dollars():
-    result = parse_form13f(_info(_holding(value="7")), _primary(period=None), "acc")
-    assert result.period_of_report == datetime.date.today()
-    assert result.holdings[0].value == 7
+@pytest.mark.parametrize("period", [None, "", "sometime in 2021", "2021-31-12"])
+def test_parse_form13f_missing_or_unreadable_period_raises(period):
+    # Falling back to today would silently treat a pre-2022 filing's thousands as dollars.
+    with pytest.raises(ValueError, match="periodOfReport"):
+        parse_form13f(_info(_holding(value="7")), _primary(period=period), "acc")
+
+
+def test_parse_form13f_mm_dd_yyyy_period_as_in_real_filings():
+    result = parse_form13f(_info(_holding(value="2500")), _primary("12-31-2023"), "acc")
+    assert result.period_of_report == datetime.date(2023, 12, 31)
+    assert result.holdings[0].value == 2500
+
+
+def test_parse_form13f_pre_2022_scaling_from_mm_dd_yyyy_period():
+    result = parse_form13f(_info(_holding(value="2,500")), _primary("12-31-2021"), "acc")
+    assert result.period_of_report == datetime.date(2021, 12, 31)
+    assert result.holdings[0].value == 2_500_000
+
+
+def test_parse_form13f_first_readable_period_wins():
+    # periodOfReport comes before reportCalendarOrQuarter and takes precedence,
+    # so the later 2024 date does not flip the filing to dollars.
+    primary = (
+        "<edgarSubmission><periodOfReport>06-30-2021</periodOfReport>"
+        "<reportCalendarOrQuarter>06-30-2024</reportCalendarOrQuarter></edgarSubmission>"
+    )
+    result = parse_form13f(_info(_holding(value="4")), primary, "acc")
+    assert result.period_of_report == datetime.date(2021, 6, 30)
+    assert result.holdings[0].value == 4000
+
+
+def test_parse_form13f_unreadable_period_is_skipped_for_a_later_readable_one():
+    primary = (
+        "<edgarSubmission><periodOfReport>n/a</periodOfReport>"
+        "<reportCalendarOrQuarter>09-30-2020</reportCalendarOrQuarter></edgarSubmission>"
+    )
+    result = parse_form13f(_info(), primary, "acc")
+    assert result.period_of_report == datetime.date(2020, 9, 30)
 
 
 def test_parse_form13f_report_calendar_or_quarter_is_used():
@@ -144,7 +191,10 @@ def test_parse_form13f_report_calendar_or_quarter_is_used():
 
 
 def test_parse_form13f_empty_first_name_and_cik():
-    primary = "<s><cik></cik><name></name><name>Later</name></s>"
+    primary = (
+        "<s><cik></cik><name></name><name>Later</name>"
+        "<periodOfReport>03-31-2024</periodOfReport></s>"
+    )
     result = parse_form13f(_info(), primary, "acc")
     assert result.filer_cik == 0
     # An empty first <name> leaves filer_name empty, so the next one is taken.
@@ -240,3 +290,51 @@ def test_parse_form13f_holding_without_name_or_cusip():
     (h,) = parse_form13f(_info(holding), _primary(), "acc").holdings
     assert h.name_of_issuer == ""
     assert h.cusip == "000000000"
+
+
+# ---------------------------------------------------------------------------
+# Comments and processing instructions
+# ---------------------------------------------------------------------------
+
+
+def test_local_helper_names_elements_and_blanks_comments_and_pis():
+    root = etree.fromstring(f"<r xmlns='{_NS_MAIN}'><!-- c --><?pi x?><infoTable/></r>".encode())
+    assert [form13f._local(el) for el in root.iter()] == ["r", "", "", "infoTable"]
+
+
+def _commented_holding(name: str) -> str:
+    # Comments before, between and inside the blocks the parser walks by local name,
+    # and investmentDiscretion missing so the child scan has to step over them.
+    return (
+        "<!-- holding --><infoTable><!-- issuer -->"
+        f"<nameOfIssuer>{name}</nameOfIssuer><?app note?><cusip>037833100</cusip>"
+        "<value>10</value>"
+        "<shrsOrPrnAmt><!-- amount --><sshPrnamt>20</sshPrnamt>"
+        "<!-- type --><sshPrnamtType>SH</sshPrnamtType></shrsOrPrnAmt>"
+        "<votingAuthority><!-- sole first --><Sole>15</Sole><?vote pi?>"
+        "<Shared>3</Shared><!-- none --><None>2</None></votingAuthority>"
+        "</infoTable>"
+    )
+
+
+@pytest.mark.parametrize("ns", [_NS_MAIN, _NS_ALT, None], ids=["main-ns", "alt-ns", "no-ns"])
+def test_parse_form13f_xml_comments_in_info_table_are_ignored(ns):
+    info = _info(
+        _commented_holding("APPLE INC"), "<!-- between -->", _commented_holding("B"), ns=ns
+    )
+    primary = _primary().replace("<headerData>", "<!-- generated --><headerData><?pi x?>")
+
+    result = parse_form13f(info, primary, "acc")
+
+    assert [h.name_of_issuer for h in result.holdings] == ["APPLE INC", "B"]
+    for h in result.holdings:
+        assert h.cusip == "037833100"
+        assert h.value == 10
+        assert (h.shares, h.share_type) == (20, "SH")
+        assert h.investment_discretion is None
+        assert (h.voting_sole, h.voting_shared, h.voting_none) == (15, 3, 2)
+
+
+def test_parse_form13f_comment_only_info_table_has_no_holdings():
+    result = parse_form13f("<informationTable><!-- empty --></informationTable>", _primary(), "a")
+    assert result.holdings == []

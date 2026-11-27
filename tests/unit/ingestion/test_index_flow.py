@@ -35,18 +35,23 @@ def test_index_urls_empty_when_start_after_end():
     assert _index_urls(datetime.date(2025, 1, 1), datetime.date(2024, 1, 1)) == []
 
 
-def _fixed_width_line(form: str, name: str, cik: str, date: str, filename: str) -> str:
-    """A line shaped exactly the way _INDEX_LINE_RE expects (12 + 62 char columns)."""
-    return f"{form:<12} {name:<62} {cik} {date} {filename}"
+def _real_line(form: str, company: str, cik: str, date: str, filename: str) -> str:
+    """A form.idx data line: form 17, company 62, CIK 12 and date 12 chars wide."""
+    return f"{form:<17}{company:<62}{cik:<12}{date:<12}{filename}"
 
 
-# A real form.idx pads columns without a separating space and does not zero pad the
-# CIK, so these lines go through the whitespace-split fallback.
+# Real form.idx lines: columns padded to width, CIK not zero padded.
 _REAL_STYLE = [
-    "4           APPLE INC                                                     320193"
-    "      2024-01-03  edgar/data/320193/0000320193-24-000001.txt",
-    "10-K        MICROSOFT CORP                                                789019"
-    "      2024-01-04  edgar/data/789019/0000789019-24-000002.txt",
+    _real_line(
+        "4", "APPLE INC", "320193", "2024-01-03", "edgar/data/320193/0000320193-24-000001.txt"
+    ),
+    _real_line(
+        "10-K",
+        "MICROSOFT CORP",
+        "789019",
+        "2024-01-04",
+        "edgar/data/789019/0000789019-24-000002.txt",
+    ),
 ]
 
 
@@ -56,30 +61,41 @@ def _index_text(lines: list[str]) -> str:
         "Last Data Received:    March 31, 2024",
         "4 this header line looks like data but sits above the dashes",
         "",
-        "Form Type   Company Name                                                  CIK"
-        "         Date Filed  File Name",
+        _real_line("Form Type", "Company Name", "CIK", "Date Filed", "File Name"),
         "-" * 140,
     ]
     return "\n".join(header + lines) + "\n"
+
+
+async def _parse(lines: list[str]) -> list[dict]:
+    client = MagicMock()
+    client.get_text = AsyncMock(return_value=_index_text(lines))
+    return await index_flow.fetch_and_parse_index.fn(client, "u")
+
+
+def test_real_line_helper_matches_the_edgar_layout():
+    # Copied from a real 2024 QTR1 form.idx; the helper must reproduce it exactly.
+    real = (
+        "4                Lackey Sarah                                                  1960982"
+        "     2024-01-08  edgar/data/1960982/0001806201-24-000006.txt"
+    )
+    assert real == _real_line(
+        "4", "Lackey Sarah", "1960982", "2024-01-08", "edgar/data/1960982/0001806201-24-000006.txt"
+    )
 
 
 async def test_fetch_and_parse_index_parses_both_line_shapes():
     text = _index_text(
         [
             *_REAL_STYLE,
-            _fixed_width_line(
-                "13F-HR",
-                "BERKSHIRE HATHAWAY INC",
-                "0001067983",
-                "2024-02-14",
-                "edgar/data/1067983/0000950123-24-001234.txt",
+            # Older, narrower layout with a zero-padded CIK still parses.
+            f"{'13F-HR':<12} {'BERKSHIRE HATHAWAY INC':<62} 0001067983 2024-02-14 "
+            "edgar/data/1067983/0000950123-24-001234.txt",
+            # Ignored: unwanted form type and too few columns.
+            _real_line(
+                "8-K", "SOME CO", "1", "2024-01-05", "edgar/data/1/0000000001-24-000001.txt"
             ),
-            # Ignored: unwanted form type, too few columns, and an unparseable date.
-            "8-K         SOME CO                                                       1"
-            "           2024-01-05  edgar/data/1/0000000001-24-000001.txt",
             "4 short",
-            "4           BAD DATE CO                                                   2"
-            "           2024-13-99  edgar/data/2/0000000002-24-000001.txt",
         ]
     )
     client = MagicMock()
@@ -104,21 +120,126 @@ async def test_fetch_and_parse_index_parses_both_line_shapes():
     }
     assert msft["form_type"] == "10-K"
     assert msft["company_name"] == "MICROSOFT CORP"
-    # Regex path: stripped fixed-width columns.
+    assert msft["cik"] == 789019
     assert brk["form_type"] == "13F-HR"
     assert brk["company_name"] == "BERKSHIRE HATHAWAY INC"
     assert brk["cik"] == 1067983
     assert brk["date_filed"] == datetime.date(2024, 2, 14)
 
 
-async def test_fetch_and_parse_index_strips_index_htm_suffix():
-    line = (
-        "4/A         ACME CORP                                                     42"
-        "          2024-03-01  edgar/data/42/0000000042-24-000009-index.htm"
+async def test_fetch_and_parse_index_skips_line_with_impossible_date():
+    # One bad line must not sink the rest of the quarter's index.
+    records = await _parse(
+        [
+            _real_line(
+                "4", "BAD DATE CO", "2", "2024-13-99", "edgar/data/2/0000000002-24-000001.txt"
+            ),
+            *_REAL_STYLE,
+        ]
     )
-    client = MagicMock()
-    client.get_text = AsyncMock(return_value=_index_text([line]))
-    records = await index_flow.fetch_and_parse_index.fn(client, "u")
+    assert [r["cik"] for r in records] == [320193, 789019]
+
+
+async def test_fetch_and_parse_index_real_lines_keep_repeated_spaces_in_company():
+    records = await _parse(
+        [
+            _real_line(
+                "4",
+                "Lackey Sarah",
+                "1960982",
+                "2024-01-08",
+                "edgar/data/1960982/0001806201-24-000006.txt",
+            ),
+            _real_line(
+                "10-Q",
+                "ALERUS FINANCIAL  NA",
+                "903419",
+                "2024-02-29",
+                "edgar/data/903419/0000903419-24-000011.txt",
+            ),
+            # A seven-digit CIK, a /A form and a company name ending in a number.
+            _real_line(
+                "13F-HR/A",
+                "FUND 2 LP",
+                "1234567",
+                "2024-03-28",
+                "edgar/data/1234567/0001234567-24-000003.txt",
+            ),
+            # A name too long for its column runs into the CIK column.
+            "4                "
+            + "A" * 70
+            + " 1000001    2024-01-09  edgar/data/1000001/0001000001-24-000001.txt",
+        ]
+    )
+
+    lackey, alerus, fund, long_name = records
+    assert lackey == {
+        "accession_number": "0001806201-24-000006",
+        "form_type": "4",
+        "cik": 1960982,
+        "company_name": "Lackey Sarah",
+        "date_filed": datetime.date(2024, 1, 8),
+        "filename": "edgar/data/1960982/0001806201-24-000006.txt",
+    }
+    assert alerus["company_name"] == "ALERUS FINANCIAL  NA"
+    assert alerus["form_type"] == "10-Q"
+    assert alerus["cik"] == 903419
+    assert alerus["date_filed"] == datetime.date(2024, 2, 29)
+    assert (fund["form_type"], fund["company_name"], fund["cik"]) == (
+        "13F-HR/A",
+        "FUND 2 LP",
+        1234567,
+    )
+    assert fund["accession_number"] == "0001234567-24-000003"
+    assert (long_name["company_name"], long_name["cik"]) == ("A" * 70, 1000001)
+
+
+async def test_fetch_and_parse_index_whitespace_fallback_for_odd_dates():
+    # The regex wants YYYY-MM-DD; anything else goes through the whitespace split,
+    # which accepts what date.fromisoformat accepts and skips the rest.
+    records = await _parse(
+        [
+            "4 ODD  DATE CO 7 20240105 edgar/data/7/0000000007-24-000001.txt",
+            "4 WORSE DATE CO 8 2024-1-5 edgar/data/8/0000000008-24-000001.txt",
+        ]
+    )
+    assert records == [
+        {
+            "accession_number": "0000000007-24-000001",
+            "form_type": "4",
+            "cik": 7,
+            "company_name": "ODD DATE CO",
+            "date_filed": datetime.date(2024, 1, 5),
+            "filename": "edgar/data/7/0000000007-24-000001.txt",
+        }
+    ]
+
+
+def test_index_line_regex_groups_on_a_real_line():
+    m = index_flow._INDEX_LINE_RE.match(
+        _real_line(
+            "10-K/A",
+            "ALERUS FINANCIAL  NA",
+            "903419",
+            "2024-03-01",
+            "edgar/data/903419/0000903419-24-000020.txt",
+        )
+    )
+    assert m is not None
+    assert m.groups() == (
+        "10-K/A",
+        "ALERUS FINANCIAL  NA",
+        "903419",
+        "2024-03-01",
+        "edgar/data/903419/0000903419-24-000020.txt",
+    )
+
+
+async def test_fetch_and_parse_index_strips_index_htm_suffix():
+    line = _real_line(
+        "4/A", "ACME CORP", "42", "2024-03-01", "edgar/data/42/0000000042-24-000009-index.htm"
+    )
+    records = await _parse([line])
     assert records[0]["accession_number"] == "0000000042-24-000009"
     assert records[0]["form_type"] == "4/A"
 

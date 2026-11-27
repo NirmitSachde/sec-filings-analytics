@@ -3,6 +3,7 @@
 SentenceTransformer, the Ollama client and the DB session are all mocked.
 """
 
+import datetime
 import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -19,8 +20,15 @@ class FakeQuery:
     def __init__(self, all_result=None, first_result=None):
         self._all = all_result if all_result is not None else []
         self._first = first_result
+        self.joins: list[tuple] = []
+        self.filters: list = []
+
+    def join(self, *args, **kwargs):
+        self.joins.append(args)
+        return self
 
     def filter(self, *args, **kwargs):
+        self.filters.extend(args)
         return self
 
     def distinct(self):
@@ -44,6 +52,11 @@ def _session(queries):
 
 def _words(n: int, prefix: str = "w") -> str:
     return " ".join(f"{prefix}{i}" for i in range(n))
+
+
+def _filed(*sections, date_filed=datetime.date(2024, 11, 1)):
+    """Rows as the encoder's section query returns them: (section, date_filed)."""
+    return [(s, date_filed) for s in sections]
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +112,22 @@ def test_chunk_text_default_params_overlap_and_coverage():
     assert set(words) == {w for c in split for w in c}
 
 
+@pytest.mark.parametrize(
+    ("chunk_size", "overlap"),
+    [(0, 0), (-5, 0), (4, 4), (4, 9), (4, -1)],
+    ids=["zero-size", "negative-size", "overlap-equals-size", "overlap-over-size", "neg-overlap"],
+)
+def test_chunk_text_rejects_bad_window(chunk_size, overlap):
+    # These windows would never advance (or would go backwards): a hang, not chunks.
+    with pytest.raises(ValueError, match="chunk_size"):
+        encoder._chunk_text(_words(10), chunk_size=chunk_size, overlap=overlap)
+
+
+def test_chunk_text_largest_valid_overlap_still_advances():
+    chunks = encoder._chunk_text(_words(4), chunk_size=2, overlap=1)
+    assert chunks == ["w0 w1", "w1 w2", "w2 w3"]
+
+
 def test_chunk_text_no_trailing_duplicate_chunk():
     # 950 words: second window ends exactly at the end, so no third chunk.
     chunks = encoder._chunk_text(_words(950))
@@ -134,9 +163,15 @@ def test_encode_risk_factors_chunks_and_skips_existing(monkeypatch, fake_model):
     ctor, model = fake_model
     done = SimpleNamespace(accession_number="0000000001-24-000001", cik=1, text="old")
     fresh = SimpleNamespace(accession_number="0000320193-24-000123", cik=320193, text=_words(1000))
+    sections_query = FakeQuery(
+        all_result=[
+            (done, datetime.date(2024, 2, 1)),
+            (fresh, datetime.date(2023, 11, 3)),
+        ]
+    )
     session = _session(
         [
-            FakeQuery(all_result=[done, fresh]),
+            sections_query,
             FakeQuery(first_result=object()),  # done already has chunks
             FakeQuery(first_result=None),  # fresh has none
         ]
@@ -160,8 +195,20 @@ def test_encode_risk_factors_chunks_and_skips_existing(monkeypatch, fake_model):
     assert added[0].chunk_text.split()[0] == "w0"
     assert added[1].chunk_text.split()[0] == "w450"
     assert [c.embedding for c in added] == [[500.0, 1.0], [500.0, 1.0], [100.0, 1.0]]
-    # Year is not derived from the filing yet (see report).
-    assert {c.year for c in added} == {0}
+    # Every chunk carries the year its 10-K was filed.
+    assert {c.year for c in added} == {2023}
+
+    # The section query selects the filing date, joins the filing index on the
+    # accession number and keeps only original 10-K risk factor sections.
+    assert session.query.call_args_list[0].args == (
+        encoder.FilingSection,
+        encoder.FilingIndex.date_filed,
+    )
+    ((target, on_clause),) = sections_query.joins
+    assert target is encoder.FilingIndex
+    assert {on_clause.left.key, on_clause.right.key} == {"accession_number"}
+    filters = {(f.left.key, f.right.value) for f in sections_query.filters}
+    assert filters == {("section", "item_1a_risk_factors"), ("form_type", "10-K")}
 
     session.rollback.assert_not_called()
     session.close.assert_called_once()
@@ -173,7 +220,7 @@ def test_encode_risk_factors_batch_commit(monkeypatch, fake_model):
         SimpleNamespace(accession_number=f"acc-{i}", cik=i, text=_words(10)) for i in range(4)
     ]
     session = _session(
-        [FakeQuery(all_result=sections)] + [FakeQuery(first_result=None) for _ in sections]
+        [FakeQuery(all_result=_filed(*sections))] + [FakeQuery(first_result=None) for _ in sections]
     )
     monkeypatch.setattr(encoder, "get_session", lambda: session)
 
@@ -182,6 +229,7 @@ def test_encode_risk_factors_batch_commit(monkeypatch, fake_model):
     assert total == 4
     # Commits after sections 2 and 4 (total hits a multiple of 2), then the final commit.
     assert session.commit.call_count == 3
+    assert {c.args[0].year for c in session.add.call_args_list} == {2024}
 
 
 def test_encode_risk_factors_no_sections(monkeypatch, fake_model):
@@ -200,7 +248,7 @@ def test_encode_risk_factors_rolls_back_on_error(monkeypatch, fake_model):
     _, model = fake_model
     model.encode.side_effect = RuntimeError("encode failed")
     section = SimpleNamespace(accession_number="a", cik=1, text="some risk text")
-    session = _session([FakeQuery(all_result=[section]), FakeQuery(first_result=None)])
+    session = _session([FakeQuery(all_result=_filed(section)), FakeQuery(first_result=None)])
     monkeypatch.setattr(encoder, "get_session", lambda: session)
 
     with pytest.raises(RuntimeError, match="encode failed"):

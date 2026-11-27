@@ -3,7 +3,7 @@
 from sentence_transformers import SentenceTransformer
 
 from sec_filings.db import get_session
-from sec_filings.models import FilingSection, RiskFactorChunk
+from sec_filings.models import FilingIndex, FilingSection, RiskFactorChunk
 
 _MODEL_NAME = "BAAI/bge-small-en-v1.5"
 _CHUNK_SIZE = 500
@@ -14,6 +14,8 @@ def _chunk_text(
     text: str, chunk_size: int = _CHUNK_SIZE, overlap: int = _CHUNK_OVERLAP
 ) -> list[str]:
     """Split text into overlapping token-approximate chunks."""
+    if chunk_size <= 0 or not 0 <= overlap < chunk_size:
+        raise ValueError("need chunk_size > 0 and 0 <= overlap < chunk_size")
     words = text.split()
     chunks: list[str] = []
     start = 0
@@ -27,19 +29,26 @@ def _chunk_text(
 
 
 def encode_risk_factors(batch_size: int = 50) -> int:
-    """Encode all un-embedded risk factor sections into vector chunks."""
+    """Encode all un-embedded 10-K risk factor sections into vector chunks.
+
+    Each chunk is tagged with the year the 10-K was filed, which is what the
+    year-over-year diff step compares. Only original 10-Ks are used: a 10-Q or
+    a 10-K/A in the same year would otherwise be mixed into that year.
+    """
     model = SentenceTransformer(_MODEL_NAME)
     session = get_session()
     total = 0
 
     try:
         sections = (
-            session.query(FilingSection)
+            session.query(FilingSection, FilingIndex.date_filed)
+            .join(FilingIndex, FilingIndex.accession_number == FilingSection.accession_number)
             .filter(FilingSection.section == "item_1a_risk_factors")
+            .filter(FilingIndex.form_type == "10-K")
             .all()
         )
 
-        for section in sections:
+        for section, date_filed in sections:
             existing = (
                 session.query(RiskFactorChunk)
                 .filter(RiskFactorChunk.accession_number == section.accession_number)
@@ -57,7 +66,7 @@ def encode_risk_factors(batch_size: int = 50) -> int:
                 chunk = RiskFactorChunk(
                     accession_number=section.accession_number,
                     issuer_cik=cik_val,
-                    year=0,
+                    year=date_filed.year,
                     chunk_index=i,
                     chunk_text=chunk_text,
                     embedding=embedding.tolist(),
