@@ -49,7 +49,7 @@ class UserAgentNotConfiguredError(Exception):
 
 def get_settings() -> Settings:
     try:
-        settings = Settings()  # type: ignore[call-arg]
+        settings = Settings()
     except Exception as e:
         raise UserAgentNotConfiguredError(
             "EDGAR_USER_AGENT environment variable is required. "
@@ -57,7 +57,6 @@ def get_settings() -> Settings:
         ) from e
     if not settings.edgar_user_agent.strip():
         raise UserAgentNotConfiguredError(
-            "EDGAR_USER_AGENT must not be empty. "
-            'Format: "AppName YourName your@email.com"'
+            'EDGAR_USER_AGENT must not be empty. Format: "AppName YourName your@email.com"'
         )
     return settings

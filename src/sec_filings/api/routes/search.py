@@ -36,11 +36,7 @@ def search_risk_similar(
     session = get_session()
     try:
         # Resolve ticker to CIK
-        mapping = (
-            session.query(TickerCik)
-            .filter(TickerCik.ticker == ticker.upper())
-            .first()
-        )
+        mapping = session.query(TickerCik).filter(TickerCik.ticker == ticker.upper()).first()
         if not mapping:
             return []
 
@@ -59,10 +55,10 @@ def search_risk_similar(
         results = session.execute(
             text("""
                 SELECT issuer_cik, chunk_text,
-                       1 - (embedding <=> :embedding::vector) as similarity
+                       1 - (embedding <=> CAST(:embedding AS vector)) as similarity
                 FROM vec.risk_factor_chunks
                 WHERE issuer_cik != :exclude_cik
-                ORDER BY embedding <=> :embedding::vector
+                ORDER BY embedding <=> CAST(:embedding AS vector)
                 LIMIT :top_k
             """),
             {
@@ -80,11 +76,7 @@ def search_risk_similar(
             seen_ciks.add(row.issuer_cik)
 
             # Resolve CIK back to ticker
-            t = (
-                session.query(TickerCik.ticker)
-                .filter(TickerCik.cik == row.issuer_cik)
-                .first()
-            )
+            t = session.query(TickerCik.ticker).filter(TickerCik.cik == row.issuer_cik).first()
 
             response.append(
                 RiskSimilarResult(
@@ -108,11 +100,7 @@ def get_risk_diffs(
     """Get the LLM-generated risk-factor diff summary for a company and year."""
     session = get_session()
     try:
-        mapping = (
-            session.query(TickerCik)
-            .filter(TickerCik.ticker == ticker.upper())
-            .first()
-        )
+        mapping = session.query(TickerCik).filter(TickerCik.ticker == ticker.upper()).first()
         if not mapping:
             return RiskDiffResponse(issuer_cik=0, year=year, diffs=[])
 

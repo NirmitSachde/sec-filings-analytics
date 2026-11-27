@@ -5,7 +5,10 @@ Two extraction paths:
 2. HTML section extraction via selectolax (risk factors, MD&A, etc.)
 """
 
+import contextlib
+import datetime
 import re
+from typing import Any
 
 from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
@@ -81,7 +84,9 @@ def _extract_sections(
 
     sections: list[FilingSectionRecord] = []
     for h_idx, (section_name, start_pos) in enumerate(unique_headers):
-        end_pos = unique_headers[h_idx + 1][1] if h_idx + 1 < len(unique_headers) else len(all_text_nodes)
+        end_pos = (
+            unique_headers[h_idx + 1][1] if h_idx + 1 < len(unique_headers) else len(all_text_nodes)
+        )
 
         section_text_parts: list[str] = []
         for node_idx, text in all_text_nodes:
@@ -106,7 +111,7 @@ def _extract_sections(
 
 
 def parse_xbrl_facts(
-    facts_json: dict,
+    facts_json: dict[str, Any],
     accession_number: str,
     cik: int,
 ) -> list[XbrlFactRecord]:
@@ -132,15 +137,11 @@ def parse_xbrl_facts(
                     is_instant = False
 
                     if "start" in entry:
-                        try:
-                            period_start = __import__("datetime").date.fromisoformat(entry["start"])
-                        except ValueError:
-                            pass
+                        with contextlib.suppress(ValueError):
+                            period_start = datetime.date.fromisoformat(entry["start"])
                     if "end" in entry:
-                        try:
-                            period_end = __import__("datetime").date.fromisoformat(entry["end"])
-                        except ValueError:
-                            pass
+                        with contextlib.suppress(ValueError):
+                            period_end = datetime.date.fromisoformat(entry["end"])
                     if period_start is None and period_end is not None:
                         is_instant = True
 
@@ -154,7 +155,9 @@ def parse_xbrl_facts(
                             decimals=str(entry.get("decimals", "")),
                             period_start=period_start,
                             period_end=period_end,
-                            context_id=entry.get("frame", f"{entry.get('fy', '')}-{entry.get('fp', '')}"),
+                            context_id=entry.get(
+                                "frame", f"{entry.get('fy', '')}-{entry.get('fp', '')}"
+                            ),
                             is_instant=is_instant,
                         )
                     )
@@ -164,7 +167,7 @@ def parse_xbrl_facts(
 
 def parse_form10k(
     html_content: str | None,
-    xbrl_facts_json: dict | None,
+    xbrl_facts_json: dict[str, Any] | None,
     accession_number: str,
     cik: int,
 ) -> Form10KFiling:

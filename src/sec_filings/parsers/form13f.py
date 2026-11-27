@@ -78,7 +78,8 @@ def parse_form13f(
     is_pre_2022 = period_of_report.year < 2022
 
     for table in info_tables:
-        def _find(tag: str) -> etree._Element | None:
+
+        def _find(tag: str, table: etree._Element = table) -> etree._Element | None:
             el = table.find(f"ns:{tag}", _NS_13F)
             if el is None:
                 el = table.find(f"ns:{tag}", _NS_13F_ALT)

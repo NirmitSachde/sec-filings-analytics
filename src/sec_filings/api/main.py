@@ -7,7 +7,10 @@ from sec_filings.api.routes import holdings, insiders, screens, search
 
 app = FastAPI(
     title="SEC Filings Analytics Platform",
-    description="REST API for SEC EDGAR insider transactions, institutional holdings, and risk-factor analysis.",
+    description=(
+        "REST API for SEC EDGAR insider transactions, institutional holdings, "
+        "and risk-factor analysis."
+    ),
     version="0.1.0",
 )
 

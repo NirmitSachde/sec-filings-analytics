@@ -73,7 +73,7 @@ async def refresh_sectors(concurrency: int = 2) -> int:
         pairs = cur.fetchall()
 
     sem = asyncio.Semaphore(concurrency)
-    results: list[tuple] = []
+    results: list[tuple[object, ...]] = []
 
     async with EdgarClient() as client:
 

@@ -7,7 +7,9 @@ from lxml import etree
 
 from sec_filings.parsers.contracts import Form4Filing, Form4Transaction
 
-_NAMESPACE = {"o": "http://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000000000&type=4&dateb=&owner=include&count=40"}
+_NAMESPACE = {
+    "o": "http://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000000000&type=4&dateb=&owner=include&count=40"
+}
 
 
 def _text(element: etree._Element | None) -> str | None:
@@ -87,7 +89,9 @@ def parse_form4(xml_content: str | bytes, accession_number: str) -> Form4Filing:
 
         is_director = _bool_val(owner_rel.find("isDirector")) if owner_rel is not None else False
         is_officer = _bool_val(owner_rel.find("isOfficer")) if owner_rel is not None else False
-        is_ten_pct = _bool_val(owner_rel.find("isTenPercentOwner")) if owner_rel is not None else False
+        is_ten_pct = (
+            _bool_val(owner_rel.find("isTenPercentOwner")) if owner_rel is not None else False
+        )
         is_other = _bool_val(owner_rel.find("isOther")) if owner_rel is not None else False
         officer_title = _text(owner_rel.find("officerTitle")) if owner_rel is not None else None
 

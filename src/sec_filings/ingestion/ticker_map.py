@@ -1,5 +1,7 @@
 """CUSIP/CIK/ticker normalization from SEC's company_tickers.json."""
 
+from typing import Any
+
 from prefect import flow, task
 
 from sec_filings.db import get_session
@@ -10,12 +12,12 @@ _TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 
 
 @task(retries=2, retry_delay_seconds=30)
-async def fetch_ticker_map(client: EdgarClient) -> list[dict]:
+async def fetch_ticker_map(client: EdgarClient) -> list[dict[str, Any]]:
     """Pull the SEC company_tickers.json and parse it."""
     response = await client.get(_TICKERS_URL)
     data = response.json()
 
-    records: list[dict] = []
+    records: list[dict[str, Any]] = []
     for entry in data.values():
         records.append(
             {
@@ -30,7 +32,7 @@ async def fetch_ticker_map(client: EdgarClient) -> list[dict]:
 
 
 @task
-def upsert_ticker_map(records: list[dict]) -> int:
+def upsert_ticker_map(records: list[dict[str, Any]]) -> int:
     """Upsert ticker-CIK mappings."""
     if not records:
         return 0
@@ -38,10 +40,7 @@ def upsert_ticker_map(records: list[dict]) -> int:
     session = get_session()
     inserted = 0
     try:
-        existing = {
-            (r.cik, r.ticker)
-            for r in session.query(TickerCik.cik, TickerCik.ticker).all()
-        }
+        existing = {(r.cik, r.ticker) for r in session.query(TickerCik.cik, TickerCik.ticker).all()}
 
         for record in records:
             key = (record["cik"], record["ticker"])

@@ -26,7 +26,9 @@ def build_digest_html() -> str:
                 InsiderTransaction.issuer_ticker,
                 InsiderTransaction.issuer_name,
                 func.count(func.distinct(InsiderTransaction.owner_cik)).label("n_insiders"),
-                func.sum(InsiderTransaction.shares * InsiderTransaction.price_per_share).label("total_value"),
+                func.sum(InsiderTransaction.shares * InsiderTransaction.price_per_share).label(
+                    "total_value"
+                ),
             )
             .filter(
                 InsiderTransaction.transaction_code == "P",
@@ -43,10 +45,7 @@ def build_digest_html() -> str:
 
         # Recent risk-factor diffs
         recent_diffs = (
-            session.query(RiskFactorDiff)
-            .order_by(RiskFactorDiff.created_at.desc())
-            .limit(5)
-            .all()
+            session.query(RiskFactorDiff).order_by(RiskFactorDiff.created_at.desc()).limit(5).all()
         )
 
         html = f"""
@@ -69,7 +68,7 @@ def build_digest_html() -> str:
             val = f"${r.total_value:,.0f}" if r.total_value else "N/A"
             html += f"""
             <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 8px; font-weight: bold;">{r.issuer_ticker or 'N/A'}</td>
+                <td style="padding: 8px; font-weight: bold;">{r.issuer_ticker or "N/A"}</td>
                 <td style="padding: 8px;">{r.issuer_name}</td>
                 <td style="padding: 8px; text-align: right;">{r.n_insiders}</td>
                 <td style="padding: 8px; text-align: right;">{val}</td>

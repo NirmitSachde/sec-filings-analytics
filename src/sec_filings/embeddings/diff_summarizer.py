@@ -2,10 +2,10 @@
 
 import json
 import re
+from typing import Any
 
 import ollama as ollama_client
 
-from sec_filings.config import get_settings
 from sec_filings.db import get_session
 from sec_filings.models import RiskFactorChunk, RiskFactorDiff
 
@@ -31,10 +31,10 @@ _DIFF_RE = re.compile(
 )
 
 
-def _summarize_pair(prev_text: str, curr_text: str, model: str = "llama3.1:8b-instruct-q4_K_M") -> dict | None:
+def _summarize_pair(
+    prev_text: str, curr_text: str, model: str = "llama3.1:8b-instruct-q4_K_M"
+) -> dict[str, Any] | None:
     """Call local Ollama to summarize a chunk pair diff."""
-    settings = get_settings()
-
     prompt = _DIFF_PROMPT.format(prev_text=prev_text[:2000], curr_text=curr_text[:2000])
 
     try:
@@ -63,11 +63,7 @@ def generate_diffs(min_similarity: float = 0.5, max_similarity: float = 0.85) ->
     total = 0
 
     try:
-        issuers = (
-            session.query(RiskFactorChunk.issuer_cik)
-            .distinct()
-            .all()
-        )
+        issuers = session.query(RiskFactorChunk.issuer_cik).distinct().all()
 
         for (issuer_cik,) in issuers:
             years = (
@@ -113,7 +109,7 @@ def generate_diffs(min_similarity: float = 0.5, max_similarity: float = 0.85) ->
                     .all()
                 )
 
-                diffs: list[dict] = []
+                diffs: list[dict[str, Any]] = []
                 prev_text = " ".join(c.chunk_text for c in prev_chunks)
                 curr_text = " ".join(c.chunk_text for c in curr_chunks)
 

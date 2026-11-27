@@ -1,7 +1,5 @@
 """Tests for the EDGAR HTTP client."""
 
-import asyncio
-
 import pytest
 
 from sec_filings.http.edgar_client import EdgarClient, _TokenBucket

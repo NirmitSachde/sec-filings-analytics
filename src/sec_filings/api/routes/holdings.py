@@ -17,28 +17,16 @@ def get_holdings(
 ) -> list[HoldingResponse]:
     session = get_session()
     try:
-        query = session.query(HoldingsPosition).filter(
-            HoldingsPosition.filer_cik == manager_cik
-        )
+        query = session.query(HoldingsPosition).filter(HoldingsPosition.filer_cik == manager_cik)
 
         if period:
-            latest = (
-                query.order_by(HoldingsPosition.period_of_report.desc())
-                .first()
-            )
+            latest = query.order_by(HoldingsPosition.period_of_report.desc()).first()
             if latest:
-                query = query.filter(
-                    HoldingsPosition.period_of_report == latest.period_of_report
-                )
+                query = query.filter(HoldingsPosition.period_of_report == latest.period_of_report)
         else:
-            latest = (
-                query.order_by(HoldingsPosition.period_of_report.desc())
-                .first()
-            )
+            latest = query.order_by(HoldingsPosition.period_of_report.desc()).first()
             if latest:
-                query = query.filter(
-                    HoldingsPosition.period_of_report == latest.period_of_report
-                )
+                query = query.filter(HoldingsPosition.period_of_report == latest.period_of_report)
 
         rows = query.order_by(HoldingsPosition.value.desc()).limit(limit).all()
 

@@ -11,7 +11,6 @@ from sqlalchemy import (
     Float,
     Index,
     Integer,
-    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -90,9 +89,7 @@ class InsiderTransaction(Base):
 class HoldingsPosition(Base):
     __tablename__ = "holdings_positions"
     __table_args__ = (
-        UniqueConstraint(
-            "accession_number", "cusip", "name_of_issuer", name="uq_holdings_pos"
-        ),
+        UniqueConstraint("accession_number", "cusip", "name_of_issuer", name="uq_holdings_pos"),
         {"schema": "raw"},
     )
 
@@ -122,7 +119,11 @@ class XbrlFact(Base):
     __tablename__ = "xbrl_facts"
     __table_args__ = (
         UniqueConstraint(
-            "accession_number", "concept", "period_start", "period_end", "context_id",
+            "accession_number",
+            "concept",
+            "period_start",
+            "period_end",
+            "context_id",
             name="uq_xbrl_fact",
         ),
         {"schema": "raw"},
@@ -212,9 +213,13 @@ class TickerOverride(Base):
 class RiskFactorChunk(Base):
     __tablename__ = "risk_factor_chunks"
     __table_args__ = (
-        Index("ix_risk_factor_embedding", "embedding", postgresql_using="hnsw",
-              postgresql_with={"m": 16, "ef_construction": 64},
-              postgresql_ops={"embedding": "vector_cosine_ops"}),
+        Index(
+            "ix_risk_factor_embedding",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
         {"schema": "vec"},
     )
 

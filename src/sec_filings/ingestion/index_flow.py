@@ -2,19 +2,17 @@
 
 import datetime
 import re
+from typing import Any
 
 from prefect import flow, task
 
-from sec_filings.config import get_settings
 from sec_filings.db import get_session
 from sec_filings.http.edgar_client import EDGAR_BASE, EdgarClient
 from sec_filings.models import FilingIndex
 
 _FORM_TYPES = {"4", "4/A", "13F-HR", "13F-HR/A", "10-K", "10-K/A", "10-Q", "10-Q/A"}
 
-_INDEX_LINE_RE = re.compile(
-    r"^(.{12})\s+(.{62})\s+(\d{10})\s+(\d{4}-\d{2}-\d{2})\s+(.+)$"
-)
+_INDEX_LINE_RE = re.compile(r"^(.{12})\s+(.{62})\s+(\d{10})\s+(\d{4}-\d{2}-\d{2})\s+(.+)$")
 
 
 def _quarter_for_month(month: int) -> int:
@@ -31,9 +29,7 @@ def _index_urls(start_date: datetime.date, end_date: datetime.date) -> list[str]
         key = (current.year, qtr)
         if key not in seen:
             seen.add(key)
-            urls.append(
-                f"{EDGAR_BASE}/Archives/edgar/full-index/{current.year}/QTR{qtr}/form.idx"
-            )
+            urls.append(f"{EDGAR_BASE}/Archives/edgar/full-index/{current.year}/QTR{qtr}/form.idx")
         if current.month == 12:
             current = current.replace(year=current.year + 1, month=1)
         else:
@@ -43,10 +39,10 @@ def _index_urls(start_date: datetime.date, end_date: datetime.date) -> list[str]
 
 
 @task(retries=2, retry_delay_seconds=30)
-async def fetch_and_parse_index(client: EdgarClient, url: str) -> list[dict]:
+async def fetch_and_parse_index(client: EdgarClient, url: str) -> list[dict[str, Any]]:
     """Download a form.idx file and parse it into filing records."""
     text = await client.get_text(url)
-    records: list[dict] = []
+    records: list[dict[str, Any]] = []
 
     in_data = False
     for line in text.splitlines():
@@ -103,7 +99,7 @@ async def fetch_and_parse_index(client: EdgarClient, url: str) -> list[dict]:
 
 
 @task
-def upsert_filings(records: list[dict]) -> int:
+def upsert_filings(records: list[dict[str, Any]]) -> int:
     """Insert filing index records with UPSERT semantics (skip duplicates)."""
     if not records:
         return 0
@@ -114,9 +110,7 @@ def upsert_filings(records: list[dict]) -> int:
         existing = {
             r[0]
             for r in session.query(FilingIndex.accession_number)
-            .filter(
-                FilingIndex.accession_number.in_([r["accession_number"] for r in records])
-            )
+            .filter(FilingIndex.accession_number.in_([r["accession_number"] for r in records]))
             .all()
         }
 
@@ -147,7 +141,7 @@ async def crawl_edgar_index(
     if end_date is None:
         end_date = datetime.date.today()
     if start_date is None:
-        start_date = end_date.replace(year=end_date.year - 5)
+        start_date = end_date.replace(year=end_date.year - 5, day=min(end_date.day, 28))
 
     urls = _index_urls(start_date, end_date)
 

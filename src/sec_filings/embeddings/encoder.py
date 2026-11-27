@@ -10,7 +10,9 @@ _CHUNK_SIZE = 500
 _CHUNK_OVERLAP = 50
 
 
-def _chunk_text(text: str, chunk_size: int = _CHUNK_SIZE, overlap: int = _CHUNK_OVERLAP) -> list[str]:
+def _chunk_text(
+    text: str, chunk_size: int = _CHUNK_SIZE, overlap: int = _CHUNK_OVERLAP
+) -> list[str]:
     """Split text into overlapping token-approximate chunks."""
     words = text.split()
     chunks: list[str] = []

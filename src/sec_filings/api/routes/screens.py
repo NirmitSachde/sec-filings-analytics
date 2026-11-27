@@ -32,9 +32,9 @@ def screen_cluster_buying(
                 InsiderTransaction.issuer_name,
                 InsiderTransaction.issuer_ticker,
                 func.count(func.distinct(InsiderTransaction.owner_cik)).label("distinct_insiders"),
-                func.sum(
-                    InsiderTransaction.shares * InsiderTransaction.price_per_share
-                ).label("total_buy_value"),
+                func.sum(InsiderTransaction.shares * InsiderTransaction.price_per_share).label(
+                    "total_buy_value"
+                ),
                 func.max(InsiderTransaction.filing_date).label("latest_filing_date"),
             )
             .filter(
@@ -50,9 +50,7 @@ def screen_cluster_buying(
             )
             .having(
                 func.count(func.distinct(InsiderTransaction.owner_cik)) >= min_insiders,
-                func.sum(
-                    InsiderTransaction.shares * InsiderTransaction.price_per_share
-                )
+                func.sum(InsiderTransaction.shares * InsiderTransaction.price_per_share)
                 >= min_value,
             )
             .order_by(func.count(func.distinct(InsiderTransaction.owner_cik)).desc())
@@ -83,9 +81,7 @@ def screen_concentration(
     session = get_session()
     try:
         # Get latest period
-        latest_period = (
-            session.query(func.max(HoldingsPosition.period_of_report)).scalar()
-        )
+        latest_period = session.query(func.max(HoldingsPosition.period_of_report)).scalar()
         if not latest_period:
             return []
 

@@ -1,7 +1,5 @@
 """Tests for configuration and settings."""
 
-import os
-
 import pytest
 
 from sec_filings.config import Settings, UserAgentNotConfiguredError, get_settings

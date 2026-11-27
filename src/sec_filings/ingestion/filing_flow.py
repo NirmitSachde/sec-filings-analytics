@@ -1,16 +1,12 @@
 """Prefect flow to fetch individual filings from EDGAR and run parsers."""
 
-import datetime
-import json
-import traceback
 from pathlib import Path
 
 from prefect import flow, task
 from sqlalchemy import func
 
-from sec_filings.config import get_settings
 from sec_filings.db import get_session
-from sec_filings.http.edgar_client import EDGAR_BASE, EDGAR_DATA_BASE, EdgarClient
+from sec_filings.http.edgar_client import EDGAR_BASE, EdgarClient
 from sec_filings.ingestion.deadletter import record_parse_failure
 from sec_filings.models import (
     FilingIndex,
@@ -33,21 +29,12 @@ def _filing_dir(form_type: str, cik: int, accession: str) -> Path:
 
 
 @task(retries=1, retry_delay_seconds=10)
-async def fetch_filing(
-    client: EdgarClient, filing: FilingIndex
-) -> Path | None:
+async def fetch_filing(client: EdgarClient, filing: FilingIndex) -> Path | None:
     """Download raw filing documents to the local raw zone."""
     out_dir = _filing_dir(filing.form_type, filing.cik, filing.accession_number)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     base_url = f"{EDGAR_BASE}/Archives/{filing.filename}"
-
-    # Fetch the filing index page to find document URLs
-    try:
-        index_url = base_url.rsplit("/", 1)[0] + "/"
-        index_html = await client.get_text(index_url)
-    except Exception:
-        index_html = ""
 
     # Always try to fetch the primary document
     primary_path = out_dir / "primary.txt"

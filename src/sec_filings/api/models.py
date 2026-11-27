@@ -1,6 +1,7 @@
 """Pydantic response models for the API."""
 
 import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -77,4 +78,4 @@ class RiskSimilarResult(BaseModel):
 class RiskDiffResponse(BaseModel):
     issuer_cik: int
     year: int
-    diffs: list[dict]
+    diffs: list[dict[str, Any]]

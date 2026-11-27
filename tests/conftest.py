@@ -1,8 +1,6 @@
 import os
 from pathlib import Path
 
-import pytest
-
 os.environ.setdefault("EDGAR_USER_AGENT", "SECFilingsAnalytics Test test@test.com")
 os.environ.setdefault("POSTGRES_HOST", "localhost")
 os.environ.setdefault("POSTGRES_PORT", "5432")
